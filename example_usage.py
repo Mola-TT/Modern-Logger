@@ -1,7 +1,7 @@
 import sys
 import time
 import random
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel, QFrame, QSplitter, QScrollArea
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QHBoxLayout, QLabel, QFrame, QSplitter, QScrollArea, QCheckBox
 from PySide6.QtCore import QThread, Signal, QTimer, Qt
 
 from modern_logger import ModernLogger
@@ -123,11 +123,45 @@ class DirectMessageWorker(QThread):
         """Request the worker to stop"""
         self._stop_requested = True
 
+# Add a worker thread with more granular progress updates
+class InlineProgressWorker(QThread):
+    """Worker thread that provides more granular progress updates"""
+    finished = Signal()
+    progress = Signal(int, int, str)  # current, total, message
+    
+    def __init__(self, steps=20):
+        super().__init__()
+        self._steps = steps
+        self._stop_requested = False
+        
+    def run(self):
+        # Wait a moment to ensure UI is updated before starting progress updates
+        time.sleep(0.3)  # Increased delay
+        
+        # Send progress updates for each step
+        for i in range(self._steps + 1):  # +1 to include 100%
+            if self._stop_requested:
+                break
+                
+            # Fixed message for all progress updates
+            message = "Processing task" 
+            self.progress.emit(i, self._steps, message)
+            
+            # Calculate a realistic delay that varies slightly
+            delay = 0.2 + random.uniform(-0.1, 0.1)  # 0.1-0.3 second delay
+            time.sleep(delay)
+            
+        self.finished.emit()
+        
+    def stop(self):
+        """Request the worker to stop"""
+        self._stop_requested = True
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Modern Logger Example")
-        self.resize(1000, 700)  # Wider window size for side-by-side layout
+        self.resize(1200, 800)  # Increase window size for better content display
         
         # Create main splitter to divide console and controls
         main_splitter = QSplitter(Qt.Horizontal)
@@ -158,7 +192,7 @@ class MainWindow(QMainWindow):
         # Create a scroll area for the controls in case they're too tall
         controls_scroll = QScrollArea()
         controls_scroll.setWidgetResizable(True)
-        controls_scroll.setMinimumWidth(450)  # Set minimum width for controls area
+        controls_scroll.setMinimumWidth(500)  # Increase minimum width for controls area
         
         # Container widget for all controls
         controls_widget = QWidget()
@@ -182,21 +216,26 @@ class MainWindow(QMainWindow):
         self.add_50_messages_btn = QPushButton("Send 50 Messages")
         self.add_50_messages_btn.clicked.connect(self.add_50_messages)
         
+        # Add new Clear Messages button
+        self.clear_messages_btn = QPushButton("Clear Messages")
+        self.clear_messages_btn.clicked.connect(self.clear_messages)
+        
         message_buttons_layout.addWidget(self.add_message_btn)
         message_buttons_layout.addWidget(self.add_50_messages_btn)
+        message_buttons_layout.addWidget(self.clear_messages_btn)
         controls_layout.addLayout(message_buttons_layout)
         
         # Add separator between control groups
         controls_layout.addWidget(self._create_separator())
         
-        # 2. Loading Indicator Test
-        self._add_group_label(controls_layout, "Loading Indicator Test", 
-                             "Test animated loading indicator with message queueing. While loading, messages are queued and displayed in sequence after loading completes. Loading can be manually stopped.")
+        # 2. Loading Test (renamed from "Loading Indicator Test")
+        self._add_group_label(controls_layout, "Loading Test", 
+                             "Test loading state with message queuing (runs for 5 seconds). New messages are queued during loading and displayed in sequence when loading completes. Try clicking 'Send Single Message' during loading to see messages being queued.")
         
         loading_layout = QHBoxLayout()
-        self.start_loading_btn = QPushButton("Start Loading Animation")
+        self.start_loading_btn = QPushButton("Start Loading Test")  # Updated label
         self.start_loading_btn.clicked.connect(self.start_loading)
-        self.stop_loading_btn = QPushButton("Stop Loading")
+        self.stop_loading_btn = QPushButton("Stop Loading Test")  # Updated label
         self.stop_loading_btn.clicked.connect(self.stop_loading)
         self.stop_loading_btn.setEnabled(False)
         loading_layout.addWidget(self.start_loading_btn)
@@ -206,32 +245,44 @@ class MainWindow(QMainWindow):
         # Add separator
         controls_layout.addWidget(self._create_separator())
         
-        # 3. Progress Updates During Loading
-        # ...rest of the control groups with separators between them...
-        self._add_group_label(controls_layout, "Progress Updates During Loading", 
-                             "Test showing progress updates in real-time while keeping the loading indicator active. Messages appear immediately rather than being queued.")
+        # 3. Loading Test with Progress Updates (renamed from "Process Loading Test")
+        self._add_group_label(controls_layout, "Loading Test with Progress Updates", 
+                             "Test loading state with real-time progress updates. "
+                             "Messages appear immediately (passthrough mode) rather than being queued, "
+                             "showing progress as it happens. This simulates operations that need "
+                             "to report progress while processing, such as file uploads, data imports, "
+                             "or long calculations where you need to show interim results.")
         
         work_layout = QHBoxLayout()
-        self.simulate_work_btn = QPushButton("Simulate Work")
+        self.simulate_work_btn = QPushButton("Start Progress Loading Test")  # Updated button label
         self.simulate_work_btn.clicked.connect(self.simulate_work)
-        self.stop_work_btn = QPushButton("Stop Work")
+        self.stop_work_btn = QPushButton("Stop Progress Loading Test")  # Updated button label
         self.stop_work_btn.clicked.connect(self.stop_work)
         self.stop_work_btn.setEnabled(False)
+        
+        # Add new inline progress option
+        self.inline_progress_check = QCheckBox("Use Inline Progress")
+        self.inline_progress_check.setChecked(False)
+        
         work_layout.addWidget(self.simulate_work_btn)
         work_layout.addWidget(self.stop_work_btn)
+        work_layout.addWidget(self.inline_progress_check)
         controls_layout.addLayout(work_layout)
         
         # Add separator
         controls_layout.addWidget(self._create_separator())
         
-        # 4. Multi-Thread Stress Test
-        self._add_group_label(controls_layout, "Multi-Thread Stress Test", 
-                             "Test multiple threads sending messages concurrently with message queuing")
+        # 4. Concurrent Loading Test (Queued Mode) (renamed from "Multi-Thread Stress Test")
+        self._add_group_label(controls_layout, "Concurrent Loading Test (Queued Mode)", 
+                             "Test multiple threads sending messages during loading with message queuing. "
+                             "Messages from all threads are queued and displayed in order when loading completes. "
+                             "This simulates concurrent operations where results need to be processed in "
+                             "batch after completion, such as multiple API requests or database queries.")
         
         stress_layout = QHBoxLayout()
-        self.stress_test_btn = QPushButton("Run Stress Test (4 Threads)")
+        self.stress_test_btn = QPushButton("Start Concurrent Test (Queued)")
         self.stress_test_btn.clicked.connect(self.run_stress_test)
-        self.stop_stress_test_btn = QPushButton("Stop Stress Test")
+        self.stop_stress_test_btn = QPushButton("Stop Concurrent Test")
         self.stop_stress_test_btn.clicked.connect(self.stop_stress_test)
         self.stop_stress_test_btn.setEnabled(False)
         stress_layout.addWidget(self.stress_test_btn)
@@ -241,14 +292,18 @@ class MainWindow(QMainWindow):
         # Add separator
         controls_layout.addWidget(self._create_separator())
         
-        # 5. Direct Message Test
-        self._add_group_label(controls_layout, "Direct Message Test", 
-                             "Test multiple threads sending messages without loading indicator")
+        # 5. Concurrent Loading Test (Passthrough Mode) (renamed from "Direct Message Test")
+        self._add_group_label(controls_layout, "Concurrent Message Test (No Animation)", 
+                             "Test multiple threads sending messages directly without loading indicators. "
+                             "Each message appears immediately when received with no animation. "
+                             "This simulates scenarios where multiple processes need to log information "
+                             "simultaneously with immediate visibility, such as system monitoring, "
+                             "parallel processing tasks, or diagnostic logging.")
         
         direct_msg_layout = QHBoxLayout()
-        self.direct_msg_test_btn = QPushButton("Run Direct Message Test (4 Threads)")
+        self.direct_msg_test_btn = QPushButton("Start Concurrent Test (No Animation)")
         self.direct_msg_test_btn.clicked.connect(self.run_direct_msg_test)
-        self.stop_direct_msg_btn = QPushButton("Stop Direct Msg Test")
+        self.stop_direct_msg_btn = QPushButton("Stop Concurrent Test")
         self.stop_direct_msg_btn.clicked.connect(self.stop_direct_msg_test)
         self.stop_direct_msg_btn.setEnabled(False)
         direct_msg_layout.addWidget(self.direct_msg_test_btn)
@@ -262,8 +317,8 @@ class MainWindow(QMainWindow):
         controls_scroll.setWidget(controls_widget)
         main_splitter.addWidget(controls_scroll)
         
-        # Set the initial split proportion (60% console, 40% controls)
-        main_splitter.setSizes([600, 400])
+        # Set the initial split proportion (55% console, 45% controls)
+        main_splitter.setSizes([660, 540])
         
         # Set the splitter as the central widget
         self.setCentralWidget(main_splitter)
@@ -344,7 +399,7 @@ class MainWindow(QMainWindow):
         # Reset the stop flag at the start of a new operation
         self._loading_stop_requested = False
         
-        self.console.append_message("Starting loading operation")
+        self.console.append_message("Starting loading test (will run for 5 seconds)")
         
         # Update button states
         self.start_loading_btn.setEnabled(False)
@@ -353,8 +408,8 @@ class MainWindow(QMainWindow):
         # Start loading indicator AFTER appending the message
         self.console.set_loading_on()
         
-        # Create a worker thread for the loading operation
-        self.loading_worker = LoadingWorker(duration=3)
+        # Create a worker thread for the loading operation - now with 5 second duration
+        self.loading_worker = LoadingWorker(duration=5)
         self.loading_worker.finished.connect(self.loading_finished)
         self.loading_worker.start()
     
@@ -381,11 +436,13 @@ class MainWindow(QMainWindow):
     def loading_finished(self):
         # Only proceed if not already stopped manually
         if not self._loading_stop_requested:
-            self.console.set_loading_off()
+            # Make sure we include a completion message
+            self.console.set_loading_off(completion_message="Loading operation completed successfully")
             self.start_loading_btn.setEnabled(True)
             self.stop_loading_btn.setEnabled(False)
         
     def simulate_work(self):
+        """Start a simulated work process with progress updates"""
         # Reset the stop flag at the start of a new operation
         self._work_stop_requested = False
         
@@ -393,17 +450,35 @@ class MainWindow(QMainWindow):
         self.simulate_work_btn.setEnabled(False)
         self.stop_work_btn.setEnabled(True)
         
-        # First add message
-        self.console.append_message("Starting work simulation with immediate progress updates (passthrough mode)")
+        # Check if inline progress is enabled
+        use_inline = self.inline_progress_check.isChecked()
         
-        # Enable loading with passthrough mode
-        self.console.set_loading_on(queue_messages=False, passthrough_messages=True)
+        # First add message about which test is starting
+        message_type = "Inline" if use_inline else "Standard"
+        self.console.append_message(f"Starting {message_type} Progress Test")
         
-        # Create and configure worker thread
-        self.worker = WorkerThread()
-        self.worker.progress.connect(self.on_progress)
-        self.worker.finished.connect(self.on_work_finished)
-        self.worker.start()
+        # Enable loading with appropriate mode
+        if use_inline:
+            # Turn on inline progress mode BEFORE starting the worker
+            self.console.set_loading_on(queue_messages=False, passthrough_messages=True, inline_update=True)
+            
+            # Process events to ensure loading state is fully updated
+            QApplication.processEvents()
+            
+            # Create and configure inline worker - wait longer to start
+            self.worker = InlineProgressWorker(steps=20)
+            self.worker.progress.connect(self.on_inline_progress)
+            self.worker.finished.connect(self.on_work_finished)
+            self.worker.start()
+        else:
+            # Use standard passthrough mode (original implementation)
+            self.console.set_loading_on(queue_messages=False, passthrough_messages=True)
+            
+            # Create and configure standard worker
+            self.worker = WorkerThread()
+            self.worker.progress.connect(self.on_progress)
+            self.worker.finished.connect(self.on_work_finished)
+            self.worker.start()
     
     def stop_work(self):
         """Stop the work simulation"""
@@ -426,7 +501,12 @@ class MainWindow(QMainWindow):
             self.stop_work_btn.setEnabled(False)
         
     def on_progress(self, message):
+        """Handle standard progress updates"""
         self.console.append_message(message)
+    
+    def on_inline_progress(self, current, total, message):
+        """Handle inline progress updates"""
+        self.console.update_progress(current, total, message)
         
     def on_work_finished(self):
         # Only proceed if not already stopped manually
@@ -438,7 +518,7 @@ class MainWindow(QMainWindow):
     def _complete_work_operation(self):
         """Complete the work operation after ensuring all progress messages are processed"""
         # Add completion message directly as part of loading off
-        self.console.set_loading_off(completion_message="Work completed!")
+        self.console.set_loading_off(completion_message="Progress Loading Test completed successfully")
         
         # Update button states
         self.simulate_work_btn.setEnabled(True)
@@ -446,7 +526,7 @@ class MainWindow(QMainWindow):
     
     def run_stress_test(self):
         """Start a stress test with multiple worker threads"""
-        self.console.append_message("Starting stress test with 4 concurrent threads (queued messages)")
+        self.console.append_message("Starting Concurrent Loading Test with 4 threads (Queued Mode)")
         
         # Update button states
         self.stress_test_btn.setEnabled(False)
@@ -455,9 +535,6 @@ class MainWindow(QMainWindow):
         
         # Show loading indicator with message queuing
         self.console.set_loading_on(queue_messages=True)
-        
-        # Ensure initial state is scrolled to the end - use _do_auto_scroll instead of _guaranteed_scroll_to_bottom
-        QTimer.singleShot(100, self.console._do_auto_scroll)
         
         # Start 4 worker threads
         self._stress_workers = []
@@ -484,7 +561,7 @@ class MainWindow(QMainWindow):
             worker.wait(1000)  # Wait up to 1 second for each thread
         
         # Turn off loading indicator (this will process queued messages first)
-        self.console.set_loading_off(completion_message="Stress test stopped by user")
+        self.console.set_loading_off(completion_message="Concurrent Loading Test (Queued Mode) stopped by user")
         
         # Update button states
         self.stress_test_btn.setEnabled(True)
@@ -505,18 +582,21 @@ class MainWindow(QMainWindow):
             # If all workers are done, finish the stress test
             if self._active_workers <= 0:
                 self.console.set_loading_off()
-                self.console.append_message("All stress test threads completed successfully")
+                self.console.append_message("Concurrent Loading Test (Queued Mode) completed successfully")
                 self.stress_test_btn.setEnabled(True)
                 self.stop_stress_test_btn.setEnabled(False)
     
     def run_direct_msg_test(self):
         """Start a test with multiple threads sending direct messages without loading indicators"""
-        self.console.append_message("Starting direct message test with 4 concurrent threads")
+        self.console.append_message("Starting Concurrent Message Test (No Animation)")
         
         # Update button states
         self.direct_msg_test_btn.setEnabled(False)
         self.stop_direct_msg_btn.setEnabled(True)
         self._direct_msg_stop_requested = False
+        
+        # NOTE: We're intentionally NOT activating the loading indicator here
+        # to demonstrate direct message handling without loading animation
         
         # Start 4 worker threads
         self._direct_msg_workers = []
@@ -546,7 +626,7 @@ class MainWindow(QMainWindow):
         self.direct_msg_test_btn.setEnabled(True)
         self.stop_direct_msg_btn.setEnabled(False)
         
-        self.console.append_message("Direct message test stopped by user")
+        self.console.append_message("Concurrent Message Test (No Animation) stopped by user")
     
     def on_direct_message(self, message):
         """Handle direct messages from worker threads"""
@@ -562,9 +642,14 @@ class MainWindow(QMainWindow):
             
             # If all workers are done, finish the test
             if self._active_direct_msg_workers <= 0:
-                self.console.append_message("All direct message threads completed successfully")
+                self.console.append_message("Concurrent Message Test (No Animation) completed successfully")
                 self.direct_msg_test_btn.setEnabled(True)
                 self.stop_direct_msg_btn.setEnabled(False)
+    
+    def clear_messages(self):
+        """Clear all messages from the console"""
+        # Simply clear the console immediately without any messages
+        self.console.clear()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
