@@ -7,6 +7,7 @@ import queue
 import re
 import traceback
 import sys
+import time
 
 class ColorfulLineIndicator(QWidget):
     """A colorful line loading indicator that appears at the bottom of the ModernLogger"""
@@ -201,7 +202,7 @@ class ModernLogger(QTextEdit):
     # Keep the signal for internal use, but we won't show the label anymore
     scroll_state_changed = Signal(bool)  # True when at bottom, False when scrolled up
 
-    def __init__(self, parent=None, queue_messages=True):
+    def __init__(self, parent=None, queue_messages=True, auto_process_events=True):
         super().__init__(parent)
         self.setReadOnly(True)
         
@@ -233,6 +234,12 @@ class ModernLogger(QTextEdit):
         self._preserve_scroll_state = False
         self._saved_scroll_position = 0
         self._saved_scroll_percentage = 0
+        
+        # Event processing settings
+        self._auto_process_events = auto_process_events
+        self._event_processing_count = 0
+        self._event_processing_threshold = 5  # Process events after every 5 operations
+        self._last_event_process_time = None
         
         # Connect scroll signals
         scrollbar = self.verticalScrollBar()
@@ -346,7 +353,9 @@ class ModernLogger(QTextEdit):
         
         # Force immediate update
         self.repaint()
-        QApplication.processEvents()
+        
+        # Process events after scrolling
+        self._process_events_if_needed()
         
         return True
     
@@ -410,6 +419,9 @@ class ModernLogger(QTextEdit):
                 # We were at the bottom and auto-scroll is enabled
                 self._do_auto_scroll()
                 self._first_content = False
+            
+            # Process events after batch processing
+            self._process_events_if_needed()
                 
         except Exception as e:
             print(f"Error in _process_batch: {traceback.format_exc()}", file=sys.stderr)
@@ -519,7 +531,7 @@ class ModernLogger(QTextEdit):
                     self._restore_scroll_position()
             
             # Force update
-            QApplication.processEvents()
+            self._process_events_if_needed()
             
         except Exception as e:
             print(f"Error in set_loading_on: {traceback.format_exc()}", file=sys.stderr)
@@ -602,7 +614,7 @@ class ModernLogger(QTextEdit):
             scrollbar.setValue(old_value)
             
             # Process events to update the text display but maintain scroll
-            QApplication.processEvents()
+            self._process_events_if_needed()
             
             return True
             
@@ -684,6 +696,9 @@ class ModernLogger(QTextEdit):
             # Reset scroll preservation flag
             self._preserve_scroll_state = False
             
+            # Process events after all messages are added
+            self._process_events_if_needed()
+            
         except Exception as e:
             print(f"Error in set_loading_off: {traceback.format_exc()}", file=sys.stderr)
             # Ensure auto-scroll is restored even on error
@@ -713,3 +728,63 @@ class ModernLogger(QTextEdit):
                 
         except Exception as e:
             print(f"Error in clear: {traceback.format_exc()}", file=sys.stderr)
+    
+    def _process_events_if_needed(self):
+        """Process events if auto_process_events is enabled and enough time has passed"""
+        if not self._auto_process_events:
+            return False
+        
+        current_time = time.time()
+        
+        # Increment counter
+        self._event_processing_count += 1
+        
+        # Check if we should process events
+        should_process = False
+        
+        # Process after certain number of operations
+        if self._event_processing_count >= self._event_processing_threshold:
+            should_process = True
+        
+        # Or after minimum elapsed time (100ms)
+        elif self._last_event_process_time and current_time - self._last_event_process_time >= 0.1:
+            should_process = True
+            
+        # Process events if needed
+        if should_process:
+            QApplication.processEvents()
+            self._event_processing_count = 0
+            self._last_event_process_time = current_time
+            return True
+        
+        # Update last process time if it's the first call
+        if not self._last_event_process_time:
+            self._last_event_process_time = current_time
+        
+        return False
+    
+    @property
+    def handles_event_processing(self):
+        """
+        Returns whether this logger automatically processes events.
+        
+        If True, client code generally doesn't need to call QApplication.processEvents()
+        during operations with this logger.
+        
+        Returns:
+            bool: True if the logger handles event processing automatically
+        """
+        return self._auto_process_events
+    
+    def set_event_processing(self, enabled, threshold=5):
+        """
+        Configure automatic event processing.
+        
+        Args:
+            enabled (bool): Whether to automatically process events
+            threshold (int): Number of operations before processing events
+        """
+        self._auto_process_events = enabled
+        self._event_processing_threshold = max(1, threshold)
+        self._event_processing_count = 0
+        self._last_event_process_time = None

@@ -378,16 +378,13 @@ class MainWindow(QMainWindow):
         try:
             self.console.append_message("Starting to add 50 messages...")
             
-            # Add messages in small batches with pauses for UI updates
+            # Add messages in small batches
             for i in range(1, 51):
                 self.console.append_message(f"Message #{i} of 50")
                 
-                # Process events more frequently
-                if i % 5 == 0:
-                    QApplication.processEvents()
-                    
-                    # Add small delay to prevent UI freezing (50ms every 5 messages)
-                    QTimer.singleShot(50, lambda: None)
+                # We don't need these processEvents calls if the logger handles them
+                # Small delay every 10 messages to prevent UI from becoming unresponsive
+                if i % 10 == 0 and not self.console.handles_event_processing:
                     QApplication.processEvents()
                     
             self.console.append_message("Finished adding 50 messages")
