@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QTextEdit, QLabel, QApplication, QWidget
-from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QPropertyAnimation, QPoint, QRectF, QEasingCurve
-from PySide6.QtGui import QTextCursor, QColor, QPainter, QPen, QFont, QPainterPath, QBrush, QLinearGradient
+from PySide6.QtWidgets import QTextEdit, QLabel, QApplication, QWidget, QPushButton, QGraphicsDropShadowEffect
+from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QPropertyAnimation, QPoint, QRectF, QEasingCurve, QEvent, QObject
+from PySide6.QtGui import QTextCursor, QColor, QPainter, QPen, QFont, QPainterPath, QBrush, QLinearGradient, QIcon
 import math
 from datetime import datetime
 import queue
@@ -193,6 +193,199 @@ class ColorfulLineIndicator(QWidget):
         # Force a repaint to ensure the widget becomes transparent
         self.update()
 
+class ScrollToBottomButton(QPushButton):
+    """A floating button that scrolls the logger to the bottom when clicked"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        
+        # Configure button appearance
+        self.setFixedSize(36, 36)
+        self.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(235, 100, 150, 140);
+                border-radius: 18px;
+                border: none;
+                color: white;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: rgba(235, 100, 150, 180);
+            }
+            QPushButton:pressed {
+                background-color: rgba(215, 30, 150, 180);
+            }
+        """)
+        
+        # Use a down arrow character as the button text
+        self.setText("↓")
+        self.setFont(QFont("Arial", 16, QFont.Bold))
+        
+        # Add a drop shadow effect
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setOffset(0, 2)
+        shadow.setBlurRadius(6)
+        shadow.setColor(QColor(0, 0, 0, 80))
+        self.setGraphicsEffect(shadow)
+        
+        # Hide by default
+        self.hide()
+        
+        # Animation for appearing/disappearing
+        self._opacity = 0.0
+        self._animation = QPropertyAnimation(self, b"windowOpacity")
+        self._animation.setDuration(200)  # 200ms animation
+        
+        # Make sure button is above other content
+        self.raise_()
+        
+        # Ensure button doesn't interfere with text selection
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+        
+    def customize_appearance(self, size=None, background_color=None, hover_color=None, 
+                            pressed_color=None, text=None, font=None, animation_duration=None,
+                            shadow_enabled=True, shadow_color=None, shadow_blur=None, shadow_offset=None):
+        """
+        Customize the appearance of the scroll button
+        
+        Args:
+            size (int, optional): Size of the button in pixels (button is square). Defaults to None.
+            background_color (str, optional): Background color in CSS format. Defaults to None.
+            hover_color (str, optional): Hover color in CSS format. Defaults to None.
+            pressed_color (str, optional): Pressed color in CSS format. Defaults to None.
+            text (str, optional): Button text. Defaults to None.
+            font (QFont, optional): Button font. Defaults to None.
+            animation_duration (int, optional): Duration of show/hide animations in ms. Defaults to None.
+            shadow_enabled (bool, optional): Whether to show shadow. Defaults to True.
+            shadow_color (QColor, optional): Shadow color. Defaults to None.
+            shadow_blur (int, optional): Shadow blur radius. Defaults to None.
+            shadow_offset (tuple, optional): Shadow offset (x, y). Defaults to None.
+        """
+        # Update size if specified
+        if size is not None:
+            self.setFixedSize(size, size)
+            # Update border radius to half the size for a circular button
+            border_radius = size // 2
+        else:
+            # Use current size
+            border_radius = self.width() // 2
+            
+        # Prepare style sheet components
+        bg_color = background_color or "rgba(235, 100, 150, 180)"
+        h_color = hover_color or "rgba(235, 100, 150, 220)"
+        p_color = pressed_color or "rgba(215, 30, 150, 220)"
+        
+        # Create and apply style sheet
+        style_sheet = f"""
+            QPushButton {{
+                background-color: {bg_color};
+                border-radius: {border_radius}px;
+                border: none;
+                color: white;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {h_color};
+            }}
+            QPushButton:pressed {{
+                background-color: {p_color};
+            }}
+        """
+        self.setStyleSheet(style_sheet)
+        
+        # Update text if specified
+        if text is not None:
+            self.setText(text)
+            
+        # Update font if specified
+        if font is not None:
+            self.setFont(font)
+            
+        # Update animation duration if specified
+        if animation_duration is not None:
+            self._animation.setDuration(animation_duration)
+            
+        # Update shadow effect
+        if shadow_enabled:
+            # Create new shadow or get existing one
+            current_effect = self.graphicsEffect()
+            shadow = current_effect if isinstance(current_effect, QGraphicsDropShadowEffect) else QGraphicsDropShadowEffect(self)
+            
+            # Update shadow properties if specified
+            if shadow_offset is not None:
+                shadow.setOffset(shadow_offset[0], shadow_offset[1])
+            if shadow_blur is not None:
+                shadow.setBlurRadius(shadow_blur)
+            if shadow_color is not None:
+                shadow.setColor(shadow_color)
+                
+            # Apply shadow if it's new
+            if shadow != current_effect:
+                self.setGraphicsEffect(shadow)
+        else:
+            # Remove shadow if disabled
+            self.setGraphicsEffect(None)
+        
+    def show_animated(self):
+        """Show the button with a fade-in animation"""
+        if self.isVisible() and self.windowOpacity() > 0.9:
+            return
+            
+        # Disconnect any existing connections to prevent memory leaks
+        try:
+            # Check if the signal has any connections before disconnecting
+            if self._animation.receivers(self._animation.finished) > 0:
+                self._animation.finished.disconnect()
+        except (RuntimeError, TypeError):
+            # No connections to disconnect or other error
+            pass
+            
+        self._animation.stop()
+        self.setWindowOpacity(self.windowOpacity())  # Ensure opacity property is set
+        self._animation.setStartValue(self.windowOpacity())
+        self._animation.setEndValue(1.0)
+        self.show()
+        self._animation.start()
+        
+    def hide_animated(self):
+        """Hide the button with a fade-out animation"""
+        if not self.isVisible() or self.windowOpacity() < 0.1:
+            self.hide()
+            return
+            
+        # Disconnect any existing connections to prevent memory leaks
+        try:
+            # Check if the signal has any connections before disconnecting
+            if self._animation.receivers(self._animation.finished) > 0:
+                self._animation.finished.disconnect()
+        except (RuntimeError, TypeError):
+            # No connections to disconnect or other error
+            pass
+            
+        self._animation.stop()
+        self.setWindowOpacity(self.windowOpacity())  # Ensure opacity property is set
+        self._animation.setStartValue(self.windowOpacity())
+        self._animation.setEndValue(0.0)
+        
+        # Connect to animation finished signal to hide the button
+        self._animation.finished.connect(self._on_hide_animation_finished)
+        self._animation.start()
+        
+    def _on_hide_animation_finished(self):
+        """Handle animation finished event"""
+        # Disconnect to prevent memory leaks
+        try:
+            # Check if the signal has any connections before disconnecting
+            if self._animation.receivers(self._animation.finished) > 0:
+                self._animation.finished.disconnect(self._on_hide_animation_finished)
+        except (RuntimeError, TypeError):
+            # No connections to disconnect or other error
+            pass
+        
+        # Hide the button if opacity is near zero
+        if self.windowOpacity() < 0.1:
+            self.hide()
+
 class ModernLogger(QTextEdit):
     """
     A QTextEdit-based modern logger that displays timestamped messages
@@ -255,6 +448,11 @@ class ModernLogger(QTextEdit):
         self._update_line_indicator_position()
         self._line_indicator.hide()  # Ensure it's hidden by default
         
+        # Create scroll-to-bottom button
+        self._scroll_button = ScrollToBottomButton(self)
+        self._update_scroll_button_position()
+        self._scroll_button.clicked.connect(self._on_scroll_button_clicked)
+        
         # First-run flag
         self._first_content = True
         
@@ -263,130 +461,18 @@ class ModernLogger(QTextEdit):
         self._progress_current = 0
         self._progress_total = 100
         self._progress_message_id = None
-    
-    def resizeEvent(self, event):
-        """Handle resize to update indicator position"""
-        super().resizeEvent(event)
         
-        # Update line indicator position
-        self._update_line_indicator_position()
+        # Install event filter to handle resize events
+        self.installEventFilter(self)
     
-    def _update_line_indicator_position(self):
-        """Update the position of the line indicator"""
-        # Position at the bottom, full width
-        if hasattr(self, '_line_indicator') and self._line_indicator:
-            self._line_indicator.setFixedWidth(self.width())
-            self._line_indicator.move(0, self.height() - self._line_indicator.height())
-    
-    def focusInEvent(self, event):
-        """Handle focus in event - ensure indicator remains hidden if not loading"""
-        super().focusInEvent(event)
-        if hasattr(self, '_line_indicator') and not self._loading:
-            self._line_indicator.hide()
-    
-    def focusOutEvent(self, event):
-        """Handle focus out event - ensure indicator remains hidden if not loading"""
-        super().focusOutEvent(event)
-        if hasattr(self, '_line_indicator') and not self._loading:
-            self._line_indicator.hide()
-    
-    def _is_at_bottom(self):
-        """Check if view is scrolled to bottom"""
-        scrollbar = self.verticalScrollBar()
-        return scrollbar.value() >= scrollbar.maximum() - 5
-    
-    def _on_user_scroll_start(self):
-        """Handle when user begins manual scrolling"""
-        self._user_has_scrolled = True
-        self._last_known_position = self.verticalScrollBar().value()
-    
-    def _on_user_scroll_end(self):
-        """Handle when user finishes manual scrolling"""
-        # Check if we're at bottom after user scrolling
-        at_bottom = self._is_at_bottom()
-        
-        # Enable auto-scroll if user scrolled to bottom
-        if (at_bottom and not self._auto_scroll_enabled):
-            self._auto_scroll_enabled = True
-            self.scroll_state_changed.emit(True)
-        # Disable auto-scroll if user scrolled away from bottom
-        elif (not at_bottom and self._auto_scroll_enabled):
-            self._auto_scroll_enabled = False
-            self.scroll_state_changed.emit(False)
-        
-        self._user_has_scrolled = False
-        self._was_at_bottom = at_bottom
-    
-    def _on_scroll(self, value):
-        """Track scroll position changes"""
-        # Only detect user scrolling, not programmatic scrolling
-        if self._user_has_scrolled:
-            was_at_bottom = self._was_at_bottom
-            now_at_bottom = self._is_at_bottom()
+    def eventFilter(self, obj, event):
+        """Filter events to handle resize and other events"""
+        if obj == self and event.type() == QEvent.Resize:
+            # Update button position on resize
+            self._update_scroll_button_position()
             
-            # If user scrolled away from bottom
-            if (was_at_bottom and not now_at_bottom):
-                self._auto_scroll_enabled = False
-                self.scroll_state_changed.emit(False)
-            
-            # If user scrolled back to bottom
-            elif (not was_at_bottom and now_at_bottom):
-                self._auto_scroll_enabled = True
-                self.scroll_state_changed.emit(True)
-            
-            # Update state
-            self._was_at_bottom = now_at_bottom
-    
-    def _do_auto_scroll(self):
-        """Perform auto-scrolling if enabled"""
-        if not self._auto_scroll_enabled:
-            return False
-        
-        # Reset text cursor to end
-        cursor = self.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.setTextCursor(cursor)
-        
-        # Set scrollbar to maximum
-        scrollbar = self.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
-        
-        # Force immediate update
-        self.repaint()
-        
-        # Process events after scrolling
-        self._process_events_if_needed()
-        
-        return True
-    
-    def _safe_auto_scroll(self):
-        """Perform auto-scrolling only if it was previously enabled, respecting user scroll state"""
-        if self._auto_scroll_enabled and not self._preserve_scroll_state:
-            return self._do_auto_scroll()
-        return False
-    
-    def _save_scroll_position(self):
-        """Save current scroll position for later restoration"""
-        scrollbar = self.verticalScrollBar()
-        self._saved_scroll_position = scrollbar.value()
-        if scrollbar.maximum() > 0:
-            self._saved_scroll_percentage = scrollbar.value() / scrollbar.maximum()
-        else:
-            self._saved_scroll_percentage = 0
-    
-    def _restore_scroll_position(self):
-        """Restore previously saved scroll position"""
-        scrollbar = self.verticalScrollBar()
-        scrollbar.blockSignals(True)
-        
-        if 0 <= self._saved_scroll_position <= scrollbar.maximum():
-            scrollbar.setValue(self._saved_scroll_position)
-        elif self._saved_scroll_percentage is not None:
-            new_pos = int(self._saved_scroll_percentage * scrollbar.maximum())
-            scrollbar.setValue(new_pos)
-        
-        scrollbar.blockSignals(False)
-    
+        return super().eventFilter(obj, event)
+
     def _process_batch(self):
         """Process pending message batch"""
         try:
@@ -415,13 +501,29 @@ class ModernLogger(QTextEdit):
             if not self._auto_scroll_enabled and self._preserve_scroll_state:
                 # We're not at the bottom and auto-scroll is disabled
                 self._restore_scroll_position()
+                
+                # Show scroll button since we're not at bottom
+                if hasattr(self, '_scroll_button'):
+                    self._scroll_button.show_animated()
             elif self._auto_scroll_enabled and (was_at_bottom or self._first_content):
                 # We were at the bottom and auto-scroll is enabled
                 self._do_auto_scroll()
                 self._first_content = False
+                
+                # Hide scroll button since we're at bottom - use immediate hide
+                if hasattr(self, '_scroll_button'):
+                    self._scroll_button.hide()
             
             # Process events after batch processing
             self._process_events_if_needed()
+            
+            # Ensure loading indicator remains visible if we're in loading state
+            if self._loading and hasattr(self, '_line_indicator'):
+                self._line_indicator.show()
+                self._update_line_indicator_position()
+                
+            # Update scroll button position
+            self._update_scroll_button_position()
                 
         except Exception as e:
             print(f"Error in _process_batch: {traceback.format_exc()}", file=sys.stderr)
@@ -446,6 +548,11 @@ class ModernLogger(QTextEdit):
                 elif len(self._pending_batch) >= 10:
                     self._batch_timer.stop()
                     self._process_batch()
+                    
+                # Ensure loading indicator remains visible if we're in loading state
+                if self._loading and hasattr(self, '_line_indicator'):
+                    self._line_indicator.show()
+                    self._update_line_indicator_position()
         except Exception as e:
             print(f"Error in append_message: {traceback.format_exc()}", file=sys.stderr)
     
@@ -457,6 +564,11 @@ class ModernLogger(QTextEdit):
         # Auto-scroll as needed
         if self._auto_scroll_enabled:
             self._do_auto_scroll()
+            
+        # Ensure loading indicator remains visible if we're in loading state
+        if self._loading and hasattr(self, '_line_indicator'):
+            self._line_indicator.show()
+            self._update_line_indicator_position()
     
     def set_loading_on(self, queue_messages=None, passthrough_messages=False, inline_update=False):
         """
@@ -496,7 +608,15 @@ class ModernLogger(QTextEdit):
             
             # Start the line animation
             if hasattr(self, '_line_indicator'):
+                # Update position before showing
+                self._update_line_indicator_position()
                 self._line_indicator.start_animation()
+                # Ensure it's visible and on top
+                self._line_indicator.show()
+                self._ensure_indicator_on_top()
+            
+            # Update scroll button position to account for line indicator
+            self._update_scroll_button_position()
             
             # Handle inline progress mode initialization with specific scroll behavior
             if inline_update:
@@ -517,6 +637,10 @@ class ModernLogger(QTextEdit):
                     # If not at bottom, restore scroll position and disable auto-scroll
                     scrollbar.setValue(old_value)
                     self._auto_scroll_enabled = False
+                    
+                    # Show scroll button since we're not at bottom
+                    if hasattr(self, '_scroll_button'):
+                        self._scroll_button.show_animated()
                 
                 # Store the progress message ID for later updates
                 self._progress_message_id = self.document().blockCount() - 1
@@ -527,11 +651,27 @@ class ModernLogger(QTextEdit):
                 # Standard mode - maintain previous scroll behavior
                 if was_at_bottom and self._auto_scroll_enabled:
                     self._do_auto_scroll()
+                    
+                    # Hide scroll button since we're at bottom
+                    if hasattr(self, '_scroll_button'):
+                        self._scroll_button.hide()
                 else:
                     self._restore_scroll_position()
+                    
+                    # Show scroll button if not at bottom
+                    if not self._is_at_bottom() and hasattr(self, '_scroll_button'):
+                        self._scroll_button.show_animated()
             
             # Force update
             self._process_events_if_needed()
+            
+            # Ensure indicator is still visible after all operations
+            if hasattr(self, '_line_indicator'):
+                self._line_indicator.show()
+                self._ensure_indicator_on_top()
+                
+            # Update scroll button position again
+            self._update_scroll_button_position()
             
         except Exception as e:
             print(f"Error in set_loading_on: {traceback.format_exc()}", file=sys.stderr)
@@ -555,6 +695,7 @@ class ModernLogger(QTextEdit):
             # Save current scroll position before doing anything
             scrollbar = self.verticalScrollBar()
             old_value = scrollbar.value()
+            was_at_bottom = self._is_at_bottom()
             
             # Update progress values
             self._progress_current = max(0, min(current, self._progress_total))
@@ -613,6 +754,16 @@ class ModernLogger(QTextEdit):
             # Immediately restore scroll position to prevent jumping
             scrollbar.setValue(old_value)
             
+            # Update scroll button visibility based on scroll position
+            if not was_at_bottom and hasattr(self, '_scroll_button'):
+                self._scroll_button.show_animated()
+            elif was_at_bottom and hasattr(self, '_scroll_button'):
+                # Hide immediately instead of animated to prevent lingering
+                self._scroll_button.hide()
+                
+            # Update scroll button position
+            self._update_scroll_button_position()
+            
             # Process events to update the text display but maintain scroll
             self._process_events_if_needed()
             
@@ -654,6 +805,9 @@ class ModernLogger(QTextEdit):
                 self._line_indicator.stop_animation()
                 self._line_indicator.hide()
             
+            # Update scroll button position since line indicator is now hidden
+            self._update_scroll_button_position()
+            
             # Process any queued messages while maintaining scroll position
             if not self._message_queue.empty():
                 messages = []
@@ -689,15 +843,26 @@ class ModernLogger(QTextEdit):
             if self._auto_scroll_enabled and was_at_bottom:
                 # Only auto-scroll if we were at bottom and auto-scroll is now enabled
                 QTimer.singleShot(10, self._do_auto_scroll)
+                
+                # Hide scroll button since we'll be at bottom - use immediate hide
+                if hasattr(self, '_scroll_button'):
+                    self._scroll_button.hide()
             else:
                 # Otherwise keep current position
                 scrollbar.setValue(old_value)
+                
+                # Show scroll button if not at bottom
+                if not self._is_at_bottom() and hasattr(self, '_scroll_button'):
+                    self._scroll_button.show_animated()
             
             # Reset scroll preservation flag
             self._preserve_scroll_state = False
             
             # Process events after all messages are added
             self._process_events_if_needed()
+            
+            # Update scroll button position one final time
+            self._update_scroll_button_position()
             
         except Exception as e:
             print(f"Error in set_loading_off: {traceback.format_exc()}", file=sys.stderr)
@@ -723,11 +888,237 @@ class ModernLogger(QTextEdit):
             # Clear only the pending batch, not the queued messages
             self._pending_batch.clear()
             
+            # Hide the scroll button since we're now at the bottom
+            if hasattr(self, '_scroll_button'):
+                self._scroll_button.hide()
+                
+            # Reset auto-scroll to enabled
+            self._auto_scroll_enabled = True
+            self._was_at_bottom = True
+            
             # Note: We're intentionally NOT clearing the message queue here
             # so that any queued messages during loading will still be processed
                 
         except Exception as e:
             print(f"Error in clear: {traceback.format_exc()}", file=sys.stderr)
+
+    def _is_at_bottom(self):
+        """Check if view is scrolled to bottom"""
+        scrollbar = self.verticalScrollBar()
+        return scrollbar.value() >= scrollbar.maximum() - 5
+    
+    def _on_user_scroll_start(self):
+        """Handle when user begins manual scrolling"""
+        self._user_has_scrolled = True
+        self._last_known_position = self.verticalScrollBar().value()
+    
+    def _on_user_scroll_end(self):
+        """Handle when user finishes manual scrolling"""
+        # Check if we're at bottom after user scrolling
+        at_bottom = self._is_at_bottom()
+        
+        # Enable auto-scroll if user scrolled to bottom
+        if (at_bottom and not self._auto_scroll_enabled):
+            self._auto_scroll_enabled = True
+            self.scroll_state_changed.emit(True)
+        # Disable auto-scroll if user scrolled away from bottom
+        elif (not at_bottom and self._auto_scroll_enabled):
+            self._auto_scroll_enabled = False
+            self.scroll_state_changed.emit(False)
+        
+        self._user_has_scrolled = False
+        self._was_at_bottom = at_bottom
+    
+    def _on_scroll(self, value):
+        """Track scroll position changes"""
+        # Only detect user scrolling, not programmatic scrolling
+        if self._user_has_scrolled:
+            was_at_bottom = self._was_at_bottom
+            now_at_bottom = self._is_at_bottom()
+            
+            # If user scrolled away from bottom
+            if (was_at_bottom and not now_at_bottom):
+                self._auto_scroll_enabled = False
+                self.scroll_state_changed.emit(False)
+                
+                # Show the scroll button
+                if hasattr(self, '_scroll_button'):
+                    self._scroll_button.show_animated()
+            
+            # If user scrolled back to bottom
+            elif (not was_at_bottom and now_at_bottom):
+                self._auto_scroll_enabled = True
+                self.scroll_state_changed.emit(True)
+                
+                # Hide the scroll button immediately
+                if hasattr(self, '_scroll_button'):
+                    self._scroll_button.hide()
+            
+            # Update state
+            self._was_at_bottom = now_at_bottom
+        else:
+            # Check if we need to show/hide the scroll button based on position
+            now_at_bottom = self._is_at_bottom()
+            
+            if not now_at_bottom and hasattr(self, '_scroll_button'):
+                self._scroll_button.show_animated()
+            elif now_at_bottom and hasattr(self, '_scroll_button'):
+                # Hide immediately instead of animated to prevent lingering
+                self._scroll_button.hide()
+    
+    def _do_auto_scroll(self):
+        """Perform auto-scrolling if enabled"""
+        if not self._auto_scroll_enabled:
+            return False
+        
+        # Reset text cursor to end
+        cursor = self.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self.setTextCursor(cursor)
+        
+        # Set scrollbar to maximum
+        scrollbar = self.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+        
+        # Force immediate update
+        self.repaint()
+        
+        # Hide the scroll button since we're at bottom
+        if hasattr(self, '_scroll_button'):
+            # Force hide immediately rather than animated to prevent lingering
+            self._scroll_button.hide()
+        
+        # Process events after scrolling
+        self._process_events_if_needed()
+        
+        return True
+    
+    def _safe_auto_scroll(self):
+        """Perform auto-scrolling only if it was previously enabled, respecting user scroll state"""
+        if self._auto_scroll_enabled and not self._preserve_scroll_state:
+            return self._do_auto_scroll()
+        return False
+    
+    def _save_scroll_position(self):
+        """Save current scroll position for later restoration"""
+        scrollbar = self.verticalScrollBar()
+        self._saved_scroll_position = scrollbar.value()
+        if scrollbar.maximum() > 0:
+            self._saved_scroll_percentage = scrollbar.value() / scrollbar.maximum()
+        else:
+            self._saved_scroll_percentage = 0
+    
+    def _restore_scroll_position(self):
+        """Restore previously saved scroll position"""
+        scrollbar = self.verticalScrollBar()
+        scrollbar.blockSignals(True)
+        
+        if 0 <= self._saved_scroll_position <= scrollbar.maximum():
+            scrollbar.setValue(self._saved_scroll_position)
+        elif self._saved_scroll_percentage is not None:
+            new_pos = int(self._saved_scroll_percentage * scrollbar.maximum())
+            scrollbar.setValue(new_pos)
+        
+        scrollbar.blockSignals(False)
+    
+    def _update_scroll_button_position(self):
+        """Update the position of the scroll-to-bottom button"""
+        if hasattr(self, '_scroll_button') and self._scroll_button:
+            # Position at bottom right with increased margin to avoid scrollbar
+            margin_right = 20  # Increased from 10 to 20
+            margin_bottom = 10
+            x = self.width() - self._scroll_button.width() - margin_right
+            y = self.height() - self._scroll_button.height() - margin_bottom
+            
+            # Adjust position if line indicator is visible
+            if hasattr(self, '_line_indicator') and self._line_indicator and self._line_indicator.isVisible():
+                y -= self._line_indicator.height()
+                
+            self._scroll_button.move(x, y)
+            
+            # Ensure button is on top
+            self._ensure_scroll_button_on_top()
+            
+    def _ensure_scroll_button_on_top(self):
+        """Ensure the scroll button is on top of the widget stack"""
+        if hasattr(self, '_scroll_button') and self._scroll_button:
+            # Raise the button to the top of the widget stack
+            self._scroll_button.raise_()
+            
+            # Force a repaint of the button
+            self._scroll_button.update()
+            
+    def _on_scroll_button_clicked(self):
+        """Handle scroll button click - scroll to bottom"""
+        # Enable auto-scroll
+        self._auto_scroll_enabled = True
+        
+        # Perform scroll
+        self._do_auto_scroll()
+        
+        # Hide the button immediately (not animated)
+        if hasattr(self, '_scroll_button'):
+            self._scroll_button.hide()
+        
+        # Emit signal that we're at bottom
+        self.scroll_state_changed.emit(True)
+        
+        # Update state
+        self._was_at_bottom = True
+        
+    def resizeEvent(self, event):
+        """Handle resize to update indicator position"""
+        super().resizeEvent(event)
+        
+        # Update line indicator position
+        self._update_line_indicator_position()
+        
+        # Update scroll button position
+        self._update_scroll_button_position()
+        
+        # Ensure indicator is visible if in loading state
+        if self._loading and hasattr(self, '_line_indicator'):
+            self._line_indicator.show()
+            self._ensure_indicator_on_top()
+            
+        # Process events to ensure UI updates
+        self._process_events_if_needed()
+    
+    def _update_line_indicator_position(self):
+        """Update the position of the line indicator"""
+        # Position at the bottom, full width
+        if hasattr(self, '_line_indicator') and self._line_indicator:
+            self._line_indicator.setFixedWidth(self.width())
+            self._line_indicator.move(0, self.height() - self._line_indicator.height())
+            
+            # Ensure indicator is on top
+            self._ensure_indicator_on_top()
+    
+    def focusInEvent(self, event):
+        """Handle focus in event - ensure indicator remains hidden if not loading"""
+        super().focusInEvent(event)
+        
+        # Handle loading indicator
+        if hasattr(self, '_line_indicator') and not self._loading:
+            self._line_indicator.hide()
+            
+        # Update scroll button visibility based on scroll position
+        if hasattr(self, '_scroll_button'):
+            if not self._is_at_bottom():
+                self._scroll_button.show_animated()
+            else:
+                self._scroll_button.hide()
+    
+    def focusOutEvent(self, event):
+        """Handle focus out event - ensure indicator remains hidden if not loading"""
+        super().focusOutEvent(event)
+        
+        # Handle loading indicator
+        if hasattr(self, '_line_indicator') and not self._loading:
+            self._line_indicator.hide()
+            
+        # We don't hide the scroll button on focus out, as it should remain visible
+        # if the user has scrolled away from the bottom
     
     def _process_events_if_needed(self):
         """Process events if auto_process_events is enabled and enough time has passed"""
@@ -763,6 +1154,15 @@ class ModernLogger(QTextEdit):
         
         return False
     
+    def _ensure_indicator_on_top(self):
+        """Ensure the loading indicator is on top of the widget stack"""
+        if hasattr(self, '_line_indicator') and self._line_indicator:
+            # Raise the indicator to the top of the widget stack
+            self._line_indicator.raise_()
+            
+            # Force a repaint of the indicator
+            self._line_indicator.update()
+            
     @property
     def handles_event_processing(self):
         """
