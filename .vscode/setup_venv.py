@@ -21,7 +21,8 @@ def is_venv_setup(venv_path='.venv'):
 
 def setup_venv(venv_path='.venv'):
     """Set up a virtual environment"""
-    venv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), venv_path)
+    workspace_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    venv_path = os.path.join(workspace_root, venv_path)
     
     print(f"Setting up virtual environment in '{venv_path}'...")
     
@@ -38,20 +39,37 @@ def setup_venv(venv_path='.venv'):
     # Get the path to the pip binary in the virtual environment
     if platform.system() == 'Windows':
         pip_path = os.path.join(venv_path, 'Scripts', 'pip.exe')
+        python_path = os.path.join(venv_path, 'Scripts', 'python.exe')
     else:
         pip_path = os.path.join(venv_path, 'bin', 'pip')
+        python_path = os.path.join(venv_path, 'bin', 'python')
     
-    # Install requirements
-    requirements = ['PySide6']
-    print(f"Installing required packages: {', '.join(requirements)}")
-    
+    # Upgrade pip
     try:
-        subprocess.run([pip_path, 'install'] + requirements, check=True)
-        print("Packages installed successfully.")
+        subprocess.run([pip_path, 'install', '--upgrade', 'pip'], check=True)
+        print("Pip upgraded successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to upgrade pip: {e}")
+    
+    # Install the package in development mode
+    print("Installing the package in development mode...")
+    try:
+        subprocess.run([pip_path, 'install', '-e', workspace_root], check=True)
+        print("Package installed successfully in development mode.")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"Failed to install packages: {e}")
-        return False
+        print(f"Failed to install package: {e}")
+        
+        # Fallback to manual installation of dependencies
+        print("Attempting to install dependencies directly...")
+        requirements = ['colorama>=0.4.4', 'PySide6>=6.0.0']
+        try:
+            subprocess.run([pip_path, 'install'] + requirements, check=True)
+            print("Dependencies installed successfully.")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to install dependencies: {e}")
+            return False
 
 def main():
     """Check for virtual environment and set up if needed"""

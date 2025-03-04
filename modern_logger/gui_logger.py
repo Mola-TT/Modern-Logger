@@ -1,3 +1,9 @@
+"""
+GUI Logger component for Modern Logger.
+
+This module provides a Qt-based graphical user interface for logging.
+"""
+
 from PySide6.QtWidgets import QTextEdit, QLabel, QApplication, QWidget, QPushButton, QGraphicsDropShadowEffect
 from PySide6.QtCore import Qt, Signal, Slot, QTimer, QSize, QPropertyAnimation, QPoint, QRectF, QEasingCurve, QEvent, QObject
 from PySide6.QtGui import QTextCursor, QColor, QPainter, QPen, QFont, QPainterPath, QBrush, QLinearGradient, QIcon
@@ -8,6 +14,7 @@ import re
 import traceback
 import sys
 import time
+
 
 class ColorfulLineIndicator(QWidget):
     """A colorful line loading indicator that appears at the bottom of the ModernLogger"""
@@ -175,9 +182,6 @@ class ColorfulLineIndicator(QWidget):
         
         # Draw the segment with the enhanced gradient
         painter.fillRect(segment_start_x, 0, segment_width, height, segment_gradient)
-        
-        # Handle wrap-around if needed
-        # ...existing wrap-around code...
     
     def start_animation(self):
         """Start the line animation"""
@@ -192,6 +196,7 @@ class ColorfulLineIndicator(QWidget):
         
         # Force a repaint to ensure the widget becomes transparent
         self.update()
+
 
 class ScrollToBottomButton(QPushButton):
     """A floating button that scrolls the logger to the bottom when clicked"""
@@ -386,6 +391,7 @@ class ScrollToBottomButton(QPushButton):
         if self.windowOpacity() < 0.1:
             self.hide()
 
+
 class ModernLogger(QTextEdit):
     """
     A QTextEdit-based modern logger that displays timestamped messages
@@ -467,7 +473,7 @@ class ModernLogger(QTextEdit):
     
     def eventFilter(self, obj, event):
         """Filter events to handle resize and other events"""
-        if obj == self and event.type() == QEvent.Resize:
+        if obj == self and event.type() == QEvent.Type.Resize:
             # Update button position on resize
             self._update_scroll_button_position()
             
@@ -772,7 +778,55 @@ class ModernLogger(QTextEdit):
         except Exception as e:
             print(f"Error in update_progress: {traceback.format_exc()}", file=sys.stderr)
             return False
-    
+
+    def _update_line_indicator_position(self):
+        # Implementation of _update_line_indicator_position method
+        pass
+
+    def _update_scroll_button_position(self):
+        # Implementation of _update_scroll_button_position method
+        pass
+
+    def _on_scroll(self, value):
+        # Implementation of _on_scroll method
+        pass
+
+    def _on_user_scroll_start(self):
+        # Implementation of _on_user_scroll_start method
+        pass
+
+    def _on_user_scroll_end(self):
+        # Implementation of _on_user_scroll_end method
+        pass
+
+    def _on_scroll_button_clicked(self):
+        # Implementation of _on_scroll_button_clicked method
+        pass
+
+    def _is_at_bottom(self):
+        # Implementation of _is_at_bottom method
+        pass
+
+    def _do_auto_scroll(self):
+        # Implementation of _do_auto_scroll method
+        pass
+
+    def _save_scroll_position(self):
+        # Implementation of _save_scroll_position method
+        pass
+
+    def _restore_scroll_position(self):
+        # Implementation of _restore_scroll_position method
+        pass
+
+    def _process_events_if_needed(self):
+        # Implementation of _process_events_if_needed method
+        pass
+
+    def _ensure_indicator_on_top(self):
+        # Implementation of _ensure_indicator_on_top method
+        pass
+
     def set_loading_off(self, completion_message=None):
         """Deactivate the loading indicator"""
         try:
@@ -1188,3 +1242,40 @@ class ModernLogger(QTextEdit):
         self._event_processing_threshold = max(1, threshold)
         self._event_processing_count = 0
         self._last_event_process_time = None
+        
+    def customize_scroll_button(self, size=None, background_color=None, hover_color=None, 
+                               pressed_color=None, text=None, font=None, animation_duration=None,
+                               shadow_enabled=True, shadow_color=None, shadow_blur=None, shadow_offset=None):
+        """
+        Customize the appearance of the scroll-to-bottom button
+        
+        Args:
+            size (int, optional): Size of the button in pixels (button is square). Defaults to None.
+            background_color (str, optional): Background color in CSS format. Defaults to None.
+            hover_color (str, optional): Hover color in CSS format. Defaults to None.
+            pressed_color (str, optional): Pressed color in CSS format. Defaults to None.
+            text (str, optional): Button text. Defaults to None.
+            font (QFont, optional): Button font. Defaults to None.
+            animation_duration (int, optional): Duration of show/hide animations in ms. Defaults to None.
+            shadow_enabled (bool, optional): Whether to show shadow. Defaults to True.
+            shadow_color (QColor, optional): Shadow color. Defaults to None.
+            shadow_blur (int, optional): Shadow blur radius. Defaults to None.
+            shadow_offset (tuple, optional): Shadow offset (x, y). Defaults to None.
+        """
+        if hasattr(self, '_scroll_button') and self._scroll_button:
+            self._scroll_button.customize_appearance(
+                size=size,
+                background_color=background_color,
+                hover_color=hover_color,
+                pressed_color=pressed_color,
+                text=text,
+                font=font,
+                animation_duration=animation_duration,
+                shadow_enabled=shadow_enabled,
+                shadow_color=shadow_color,
+                shadow_blur=shadow_blur,
+                shadow_offset=shadow_offset
+            )
+            
+            # Update position after customization
+            self._update_scroll_button_position() 

@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Modern Logger: Run Example",
+            "name": "Run Current File",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/example_usage.py",
+            "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
             "preLaunchTask": "ensure-venv",
@@ -15,10 +15,10 @@
             }
         },
         {
-            "name": "Modern Logger: Debug Example",
+            "name": "Debug Current File",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/example_usage.py",
+            "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false,
             "preLaunchTask": "ensure-venv",
@@ -28,13 +28,30 @@
             }
         },
         {
-            "name": "Modern Logger: Quick Run (Skip Venv Check)",
+            "name": "Run GUI Example",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/example_usage.py",
+            "program": "${workspaceFolder}/examples/gui_example.py",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "preLaunchTask": "ensure-venv",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Run CLI Example",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/cli_example.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "preLaunchTask": "ensure-venv",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
         }
-    ],
-    "compounds": []
-}
+    ]
+} 
