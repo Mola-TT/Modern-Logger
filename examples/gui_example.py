@@ -10,10 +10,15 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayo
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QFont, QColor
 
-from modern_logger import GUIModernLogger, GUILogger, MultiLogger, ConsoleLogger, FileLogger
+from modern_logger import ModernLogger, MultiLogger, ConsoleLogger, FileLogger
 
 # Custom GUIModernLogger that doesn't add the "Preparing progress tracking..." message
-class CustomGUILogger(GUIModernLogger):
+class CustomGUILogger(ModernLogger):
+    def __init__(self, *args, **kwargs):
+        # Force GUI mode
+        kwargs['gui'] = True
+        super().__init__(*args, **kwargs)
+    
     def set_loading_on(self, queue_messages=False, passthrough_messages=False, inline_update=False):
         """Override to prevent adding the 'Preparing progress tracking...' message"""
         # Store the current inline_update value
@@ -23,15 +28,17 @@ class CustomGUILogger(GUIModernLogger):
         if inline_update:
             inline_update = False
         
-        # Call the parent method with modified parameters
-        super().set_loading_on(queue_messages, passthrough_messages, inline_update)
+        # Get the GUI widget and call its method directly
+        gui_widget = self.get_gui_widget()
+        if gui_widget:
+            gui_widget.set_loading_on(queue_messages, passthrough_messages, inline_update)
         
         # Restore the inline progress mode if it was originally enabled
-        if original_inline_update:
-            self._inline_progress_update = True
-            self._progress_current = 0
-            self._progress_total = 100
-            self._progress_message_id = None
+        if original_inline_update and gui_widget:
+            gui_widget._inline_progress_update = True
+            gui_widget._progress_current = 0
+            gui_widget._progress_total = 100
+            gui_widget._progress_message_id = None
 
 class WorkerThread(QThread):
     """Example worker thread that simulates long-running operations"""
@@ -211,27 +218,14 @@ class MainWindow(QMainWindow):
         logger_label.setStyleSheet("font-weight: bold; font-size: 12pt; color: #333; padding: 5px;")
         logger_layout.addWidget(logger_label)
         
-        # Create modern logger with larger size
-        self.gui_widget = CustomGUILogger(
-            parent=None,
-            queue_messages=True,
-            auto_process_events=True
+        # Create modern logger with GUI
+        self.logger = CustomGUILogger(
+            console=True,  # Also log to console
+            file="logs/gui_example.log"  # Also log to file
         )
         
-        # Create GUI logger that wraps the widget
-        self.logger = GUILogger(
-            gui_logger=self.gui_widget,
-            name="GUILogger"
-        )
-        
-        # Create multi logger for console and file outputs
-        multi_logger = MultiLogger()
-        multi_logger.add_logger(ConsoleLogger())  # Console output
-        multi_logger.add_logger(FileLogger(filename="logs/gui_example.log"))  # File output
-        multi_logger.add_logger(self.logger)  # Add GUI logger
-        
-        # Set the multi logger as our main logger
-        self.logger = multi_logger
+        # Get the GUI widget
+        self.gui_widget = self.logger.get_gui_widget()
         
         # Add the GUI widget to our window
         logger_layout.addWidget(self.gui_widget)
