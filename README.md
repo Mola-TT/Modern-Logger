@@ -11,6 +11,7 @@ A flexible logging system with file, console, and GUI output options.
 - **Multi-Logger**: Send logs to multiple destinations simultaneously
 - **Lazy Loading**: PySide6 is only imported when GUI functionality is explicitly requested
 - **Optional Dependencies**: CLI functionality works without installing PySide6
+- **Log Export**: Export logs in multiple formats (LOG, CSV, XML, JSON) with filtering options
 
 ## Project Structure
 
@@ -19,34 +20,33 @@ Modern-Logger/
 ├── modern_logger/
 │   ├── __init__.py          # Package initialization with lazy loading
 │   ├── gui_logger.py        # GUI logger components
-│   ├── logger.py            # Base logger components
+│   ├── logger.py            # Base logger components with export functionality
 │   └── gui_adapter.py       # Adapter to connect GUI logger with base logger
 ├── examples/
 │   ├── cli_example.py       # Example of command-line application
-│   └── gui_example.py       # Example of GUI logger usage
+│   ├── gui_example.py       # Example of GUI logger usage
+│   └── export_example.py    # Example of log export functionality
 ├── install.py               # Installation helper script
 ├── setup.py                 # Package installation configuration
+├── pyproject.toml           # Modern Python packaging configuration
+├── LICENSE                  # MIT license
+├── MANIFEST.in              # Package manifest for distribution
 └── README.md                # Project documentation
 ```
 
 ## Installation
 
-### Easy Installation
-
-The easiest way to install Modern Logger is to use the provided installation script:
+### Using the Installation Script (Recommended)
 
 ```bash
-# Install with GUI support (requires PySide6)
+# Run the automated installation script
 python install.py
 
-# Install without GUI support
-python install.py --no-gui
-
-# Install in development mode
+# For development installation (editable)
 python install.py --dev
 
-# Install without running tests
-python install.py --no-test
+# Install without GUI dependencies
+python install.py --no-gui
 ```
 
 ### Manual Installation
@@ -69,212 +69,167 @@ pip install -e .
 pip install -e .[gui]
 ```
 
-### Dependencies
+## Usage Examples
 
-- **Required**: Python 3.7+, colorama
-- **Optional (for GUI)**: PySide6
-
-**Note**: PySide6 is only imported when GUI functionality is explicitly requested. This means you can use all CLI and file logging features without installing PySide6.
-
-## Usage
-
-### Simple ModernLogger Interface
+### Basic Usage
 
 ```python
 from modern_logger import ModernLogger
 
-# CLI-only logger (no PySide6 required)
-logger = ModernLogger(console=True, file="app.log", gui=False)
-logger.info("This works without PySide6!")
+# Create a logger (console output by default)
+logger = ModernLogger()
 
-# GUI logger (requires PySide6)
-logger = ModernLogger(console=True, file="app.log", gui=True)
-widget = logger.get_gui_widget()  # Get widget for embedding in your app
-logger.info("This requires PySide6")
-
-# Close when done
-logger.close()
+# Log some messages
+logger.info("Application started")
+logger.warning("This is a warning")
+logger.error("An error occurred")
 ```
 
-### Advanced Usage with Individual Components
+### File Logging
+
+```python
+from modern_logger import ModernLogger
+
+# Log to file
+logger = ModernLogger(file="logs/app.log")
+logger.info("This will be written to the file")
+
+# Both console and file
+logger = ModernLogger(console=True, file="logs/app.log")
+logger.info("This goes to both console and file")
+```
+
+### GUI Logging
+
+```python
+from modern_logger import ModernLogger
+
+# Create logger with GUI
+logger = ModernLogger(gui=True)
+widget = logger.get_gui_widget()
+
+# In your application, add the widget to your layout
+# layout.addWidget(widget)
+
+logger.info("This appears in the GUI logger")
+```
+
+### Log Export
+
+```python
+from modern_logger import ModernLogger, Logger
+
+# Create logger and generate some logs
+logger = ModernLogger()
+logger.info("Application started")
+logger.warning("High memory usage")
+logger.error("Connection failed")
+logger.critical("System overload")
+
+# Export all logs as JSON
+logger.export_log("logs/export.json", "json")
+
+# Export only errors and critical logs as CSV
+logger.export_log("logs/errors.csv", "csv", level_filter=Logger.ERROR)
+
+# Export last 10 logs as XML
+logger.export_log("logs/recent.xml", "xml", limit=10)
+
+# Export warnings and above as standard log format
+logger.export_log("logs/warnings.log", "log", level_filter=Logger.WARNING)
+```
+
+### Advanced Usage
 
 ```python
 from modern_logger import Logger, FileLogger, ConsoleLogger, MultiLogger
 
-# Create loggers
-file_logger = FileLogger(filename="app.log", max_size=1024*1024, backup_count=5)
-console_logger = ConsoleLogger(use_colors=True)
+# Create individual loggers
+console_logger = ConsoleLogger(level=Logger.DEBUG)
+file_logger = FileLogger("app.log", level=Logger.INFO)
 
-# Create a multi-logger that writes to both
-logger = MultiLogger(loggers=[file_logger, console_logger])
+# Combine multiple loggers
+multi_logger = MultiLogger(loggers=[console_logger, file_logger])
+multi_logger.info("This goes to both console and file")
 
-# Log messages
-logger.debug("This is a debug message")
-logger.info("This is an info message")
-logger.warning("This is a warning message")
-logger.error("This is an error message")
-logger.critical("This is a critical message")
-
-# Log an exception
-try:
-    1/0
-except Exception:
-    logger.exception("An error occurred")
-
-# Close loggers when done
-logger.close()
+# Export functionality
+multi_logger.export_log("export.json", "json")
 ```
 
-### GUI Components (Lazy Loading)
+## Export Formats
 
-```python
-# GUI components are only imported when needed
-from modern_logger import get_gui_components
+ModernLogger supports exporting logs in four formats:
 
-try:
-    # This will only import PySide6 when called
-    GUIModernLogger, GUILogger = get_gui_components()
-    
-    # Use GUI components...
-    gui_widget = GUIModernLogger()
-    
-except ImportError as e:
-    print("PySide6 not available:", e)
-    # Fall back to CLI-only functionality
+### 1. LOG Format (.log)
+Standard log format with aligned timestamps and levels:
+```
+[2025-05-28 14:56:50] [INFO]     Application started
+[2025-05-28 14:56:50] [WARNING]  High memory usage detected
+[2025-05-28 14:56:50] [ERROR]    Connection failed
 ```
 
-### Full GUI Application Example
-
-```python
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
-from modern_logger import ModernLogger, GUILogger
-
-app = QApplication([])
-window = QMainWindow()
-central_widget = QWidget()
-layout = QVBoxLayout(central_widget)
-
-# Create GUI logger widget
-gui_widget = ModernLogger()
-layout.addWidget(gui_widget)
-
-window.setCentralWidget(central_widget)
-window.resize(800, 600)
-window.show()
-
-# Create logger that writes to the GUI
-logger = GUILogger(gui_logger=gui_widget)
-
-# Log messages
-logger.info("This is an info message")
-logger.warning("This is a warning message")
-
-# Show progress
-logger.start_progress("Starting a long operation...")
-for i in range(10):
-    # Simulate work
-    import time
-    time.sleep(0.5)
-    # Update progress
-    logger.update_progress(i+1, 10, f"Processing item {i+1}")
-logger.end_progress("Operation completed successfully")
-
-app.exec()
+### 2. CSV Format (.csv)
+Comma-separated values for Excel/spreadsheet analysis:
+```csv
+Timestamp,Level,Level_Name,Logger_Name,Message
+2025-05-28T14:56:50.123456,20,INFO,MultiLogger,Application started
+2025-05-28T14:56:50.234567,30,WARNING,MultiLogger,High memory usage
 ```
 
-## Dependency Management
-
-Modern Logger uses lazy loading to minimize dependencies:
-
-- **CLI functionality**: Only requires `colorama` (automatically installed)
-- **GUI functionality**: Requires `PySide6` (only imported when GUI features are used)
-
-This means you can:
-1. Use the library in CLI applications without installing PySide6
-2. Add GUI functionality later by installing PySide6
-3. Deploy lightweight CLI applications without GUI dependencies
-
-```python
-# This works without PySide6 installed
-from modern_logger import ModernLogger
-logger = ModernLogger(console=True, file="app.log")
-logger.info("No GUI dependencies needed!")
-
-# This will show a helpful error if PySide6 is not installed
-try:
-    logger = ModernLogger(gui=True)
-except ImportError as e:
-    print(f"GUI not available: {e}")
+### 3. XML Format (.xml)
+Structured XML for system integration:
+```xml
+<?xml version='1.0' encoding='utf-8'?>
+<logs exported_at="2025-05-28T14:56:51.000000" total_records="3">
+  <log>
+    <timestamp>2025-05-28T14:56:50.123456</timestamp>
+    <level>20</level>
+    <level_name>INFO</level_name>
+    <logger_name>MultiLogger</logger_name>
+    <message>Application started</message>
+  </log>
+</logs>
 ```
 
-## Customization
-
-### Customize Console Colors
-
-```python
-from modern_logger import ConsoleLogger, Logger
-from colorama import Fore, Back, Style
-
-console_logger = ConsoleLogger()
-
-# Customize colors for different log levels
-console_logger.set_color(Logger.DEBUG, Fore.BLUE)
-console_logger.set_color(Logger.INFO, Fore.WHITE)
-console_logger.set_color(Logger.WARNING, Fore.YELLOW + Style.BRIGHT)
-console_logger.set_color(Logger.ERROR, Fore.RED + Style.BRIGHT)
-console_logger.set_color(Logger.CRITICAL, Back.RED + Fore.WHITE + Style.BRIGHT)
+### 4. JSON Format (.json)
+JSON format with metadata for API integration:
+```json
+{
+  "metadata": {
+    "exported_at": "2025-05-28T14:56:51.000000",
+    "total_records": 3,
+    "logger_name": "MultiLogger"
+  },
+  "logs": [
+    {
+      "timestamp": "2025-05-28T14:56:50.123456",
+      "level": 20,
+      "level_name": "INFO",
+      "message": "Application started",
+      "logger_name": "MultiLogger"
+    }
+  ]
+}
 ```
 
-### Customize GUI Logger
+## Export Options
 
-```python
-from PySide6.QtGui import QFont
-from modern_logger import ModernLogger
-
-gui_logger = ModernLogger()
-
-# Customize the scroll-to-bottom button
-gui_logger.customize_scroll_button(
-    size=40,
-    background_color="rgba(100, 150, 200, 180)",
-    hover_color="rgba(120, 170, 220, 220)",
-    pressed_color="rgba(80, 130, 180, 220)",
-    text="↓",
-    font=QFont("Arial", 18, QFont.Bold),
-    animation_duration=300,
-    shadow_enabled=True,
-    shadow_blur=8,
-    shadow_offset=(0, 3)
-)
-```
+- **format_type**: `"log"`, `"csv"`, `"xml"`, or `"json"`
+- **level_filter**: Export only logs at or above specified level (use `Logger.DEBUG`, `Logger.INFO`, `Logger.WARNING`, `Logger.ERROR`, `Logger.CRITICAL`)
+- **limit**: Maximum number of records to export (most recent logs)
 
 ## Examples
 
 The package includes several examples in the `examples/` directory:
 
 - `cli_example.py`: Shows how to use the loggers in a command-line application
-- `gui_example.py`: Demonstrates the GUI logger in a PySide6 application
+- `gui_example.py`: Demonstrates GUI logger usage in a PySide6 application
+- `export_example.py`: Comprehensive demonstration of log export functionality
 
-To run the examples:
-
+Run any example:
 ```bash
-# CLI example
-python examples/cli_example.py --log-level DEBUG --messages 30
-
-# GUI example (requires PySide6)
-python examples/gui_example.py
+python examples/export_example.py
 ```
-
-### Troubleshooting Examples
-
-If you encounter errors when running the examples:
-
-1. Make sure you're running the examples from the project root directory
-2. Ensure the package is installed or in your Python path
-3. Check that all dependencies are installed
-4. Look for error messages in the console output
-
-The examples have been updated to provide better error handling and diagnostics.
 
 ## License
 

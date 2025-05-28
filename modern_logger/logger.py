@@ -2,7 +2,7 @@
 Base logger components for Modern Logger.
 
 This module provides the core logging functionality including:
-- Base Logger class
+- Base Logger class with export capabilities
 - File Logger for logging to files with rotation
 - Console Logger for logging to the console with color support
 - Multi Logger for logging to multiple destinations
@@ -12,6 +12,9 @@ import os
 import sys
 import time
 import logging
+import json
+import csv
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import List, Optional, Union, TextIO, Dict, Any
 import traceback
@@ -21,6 +24,27 @@ from colorama import Fore, Back, Style
 
 # Initialize colorama for cross-platform colored terminal output
 colorama.init()
+
+
+class LogRecord:
+    """Class to store individual log records for export functionality"""
+    
+    def __init__(self, timestamp: datetime, level: int, level_name: str, message: str, logger_name: str = ""):
+        self.timestamp = timestamp
+        self.level = level
+        self.level_name = level_name
+        self.message = message
+        self.logger_name = logger_name
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert log record to dictionary"""
+        return {
+            'timestamp': self.timestamp.isoformat(),
+            'level': self.level,
+            'level_name': self.level_name,
+            'message': self.message,
+            'logger_name': self.logger_name
+        }
 
 
 class Logger:
@@ -53,6 +77,8 @@ class Logger:
         self.name = name
         self.level = level
         self._timestamp_format = "%Y-%m-%d %H:%M:%S"
+        self._records: List[LogRecord] = []  # Store log records for export
+        self._max_records = 10000  # Maximum records to keep in memory
     
     def set_level(self, level: int) -> None:
         """
@@ -71,6 +97,18 @@ class Logger:
             format_str (str): Format string for datetime.strftime()
         """
         self._timestamp_format = format_str
+    
+    def set_max_records(self, max_records: int) -> None:
+        """
+        Set maximum number of records to keep in memory for export
+        
+        Args:
+            max_records (int): Maximum number of records to keep
+        """
+        self._max_records = max_records
+        # Trim records if current count exceeds new limit
+        if len(self._records) > max_records:
+            self._records = self._records[-max_records:]
     
     def _format_message(self, level: int, message: str) -> str:
         """
@@ -96,6 +134,17 @@ class Logger:
             message (str): Log message
         """
         if level >= self.level:
+            timestamp = datetime.now()
+            level_name = self.LEVEL_NAMES.get(level, "UNKNOWN")
+            
+            # Store record for export functionality
+            record = LogRecord(timestamp, level, level_name, message, self.name)
+            self._records.append(record)
+            
+            # Limit memory usage by keeping only recent records
+            if len(self._records) > self._max_records:
+                self._records.pop(0)
+            
             formatted = self._format_message(level, message)
             self._write(formatted)
     
@@ -109,6 +158,153 @@ class Logger:
         # Base implementation does nothing
         # Subclasses should override this
         pass
+    
+    def get_records(self, level_filter: Optional[int] = None, limit: Optional[int] = None) -> List[LogRecord]:
+        """
+        Get stored log records with optional filtering
+        
+        Args:
+            level_filter (Optional[int]): Minimum level to include
+            limit (Optional[int]): Maximum number of records to return
+            
+        Returns:
+            List[LogRecord]: Filtered log records
+        """
+        records = self._records
+        
+        if level_filter is not None:
+            records = [r for r in records if r.level >= level_filter]
+        
+        if limit is not None:
+            records = records[-limit:]
+        
+        return records
+    
+    def clear_records(self) -> None:
+        """Clear all stored log records"""
+        self._records.clear()
+    
+    def export_log(self, filepath: str, format_type: str = "log", level_filter: Optional[int] = None, limit: Optional[int] = None) -> bool:
+        """
+        Export log records to file in specified format
+        
+        Args:
+            filepath (str): Output file path
+            format_type (str): Export format ('log', 'csv', 'xml', 'json')
+            level_filter (Optional[int]): Minimum level to include
+            limit (Optional[int]): Maximum number of records to export
+            
+        Returns:
+            bool: True if export successful, False otherwise
+        """
+        format_type = format_type.lower()
+        
+        if format_type not in ['log', 'csv', 'xml', 'json']:
+            raise ValueError(f"Unsupported format: {format_type}. Supported formats: log, csv, xml, json")
+        
+        records = self.get_records(level_filter, limit)
+        if not records:
+            return False
+        
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else '.', exist_ok=True)
+            
+            if format_type == 'log':
+                return self._export_log_format(filepath, records)
+            elif format_type == 'csv':
+                return self._export_csv_format(filepath, records)
+            elif format_type == 'xml':
+                return self._export_xml_format(filepath, records)
+            elif format_type == 'json':
+                return self._export_json_format(filepath, records)
+        except Exception as e:
+            print(f"Error exporting logs: {e}", file=sys.stderr)
+            return False
+        
+        return False
+    
+    def _export_log_format(self, filepath: str, records: List[LogRecord]) -> bool:
+        """Export records in standard log format"""
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                for record in records:
+                    timestamp_str = record.timestamp.strftime(self._timestamp_format)
+                    # Calculate padding for alignment
+                    padding = " " * (8 - len(record.level_name))
+                    f.write(f"[{timestamp_str}] [{record.level_name}]{padding} {record.message}\n")
+            return True
+        except Exception:
+            return False
+    
+    def _export_csv_format(self, filepath: str, records: List[LogRecord]) -> bool:
+        """Export records in CSV format"""
+        try:
+            with open(filepath, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                # Write header
+                writer.writerow(['Timestamp', 'Level', 'Level_Name', 'Logger_Name', 'Message'])
+                # Write records
+                for record in records:
+                    writer.writerow([
+                        record.timestamp.isoformat(),
+                        record.level,
+                        record.level_name,
+                        record.logger_name,
+                        record.message
+                    ])
+            return True
+        except Exception:
+            return False
+    
+    def _export_xml_format(self, filepath: str, records: List[LogRecord]) -> bool:
+        """Export records in XML format"""
+        try:
+            root = ET.Element("logs")
+            root.set("exported_at", datetime.now().isoformat())
+            root.set("total_records", str(len(records)))
+            
+            for record in records:
+                log_elem = ET.SubElement(root, "log")
+                
+                timestamp_elem = ET.SubElement(log_elem, "timestamp")
+                timestamp_elem.text = record.timestamp.isoformat()
+                
+                level_elem = ET.SubElement(log_elem, "level")
+                level_elem.text = str(record.level)
+                
+                level_name_elem = ET.SubElement(log_elem, "level_name")
+                level_name_elem.text = record.level_name
+                
+                logger_elem = ET.SubElement(log_elem, "logger_name")
+                logger_elem.text = record.logger_name
+                
+                message_elem = ET.SubElement(log_elem, "message")
+                message_elem.text = record.message
+            
+            tree = ET.ElementTree(root)
+            tree.write(filepath, encoding='utf-8', xml_declaration=True)
+            return True
+        except Exception:
+            return False
+    
+    def _export_json_format(self, filepath: str, records: List[LogRecord]) -> bool:
+        """Export records in JSON format"""
+        try:
+            export_data = {
+                "metadata": {
+                    "exported_at": datetime.now().isoformat(),
+                    "total_records": len(records),
+                    "logger_name": self.name
+                },
+                "logs": [record.to_dict() for record in records]
+            }
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(export_data, f, indent=2, ensure_ascii=False)
+            return True
+        except Exception:
+            return False
     
     def debug(self, message: str) -> None:
         """

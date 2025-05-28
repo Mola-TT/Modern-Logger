@@ -6,6 +6,7 @@ This package provides multiple logging options:
 - File logging with rotation support
 - GUI logging with a modern interface and progress indicators
 - Multi-destination logging to any combination of outputs
+- Log export in multiple formats (log, csv, xml, json)
 
 Examples:
     # Basic console-only logger (default)
@@ -24,7 +25,13 @@ Examples:
     # Full logger with all outputs
     logger = ModernLogger(console=True, file="logs/app.log", gui=True)
     logger.info("Logging to all outputs")
+    
+    # Export logs in different formats
+    logger.export_log("logs/export.json", "json")
+    logger.export_log("logs/errors.csv", "csv", level_filter=Logger.ERROR)
 """
+
+from typing import Optional
 
 # Import core logger components (always available)
 from .logger import Logger, FileLogger, ConsoleLogger, MultiLogger
@@ -113,6 +120,57 @@ class ModernLogger:
         """Close all loggers and clean up resources"""
         if hasattr(self, 'multi_logger') and self.multi_logger:
             self.multi_logger.close()
+    
+    def export_log(self, filepath: str, format_type: str = "log", level_filter: Optional[int] = None, limit: Optional[int] = None) -> bool:
+        """
+        Export log records to file in specified format
+        
+        Args:
+            filepath (str): Output file path
+            format_type (str): Export format ('log', 'csv', 'xml', 'json')
+            level_filter (Optional[int]): Minimum level to include (use Logger.DEBUG, Logger.INFO, etc.)
+            limit (Optional[int]): Maximum number of records to export
+            
+        Returns:
+            bool: True if export successful, False otherwise
+            
+        Examples:
+            # Export all logs as JSON
+            logger.export_log("logs/export.json", "json")
+            
+            # Export only ERROR and CRITICAL logs as CSV
+            logger.export_log("logs/errors.csv", "csv", level_filter=Logger.ERROR)
+            
+            # Export last 100 logs as XML
+            logger.export_log("logs/recent.xml", "xml", limit=100)
+        """
+        return self.multi_logger.export_log(filepath, format_type, level_filter, limit)
+    
+    def get_records(self, level_filter: Optional[int] = None, limit: Optional[int] = None):
+        """
+        Get stored log records with optional filtering
+        
+        Args:
+            level_filter (Optional[int]): Minimum level to include
+            limit (Optional[int]): Maximum number of records to return
+            
+        Returns:
+            List: Filtered log records
+        """
+        return self.multi_logger.get_records(level_filter, limit)
+    
+    def clear_records(self):
+        """Clear all stored log records"""
+        self.multi_logger.clear_records()
+    
+    def set_max_records(self, max_records: int):
+        """
+        Set maximum number of records to keep in memory for export
+        
+        Args:
+            max_records (int): Maximum number of records to keep
+        """
+        self.multi_logger.set_max_records(max_records)
 
 # Function to get GUI components (for advanced users who want direct access)
 def get_gui_components():
