@@ -212,6 +212,25 @@ class FileLogger(Logger):
             print(f"Error opening log file: {e}", file=sys.stderr)
             self._file = None
     
+    def _format_message(self, level: int, message: str) -> str:
+        """
+        Format a log message with timestamp, level, and padding for alignment
+        
+        Args:
+            level (int): Log level
+            message (str): Log message
+            
+        Returns:
+            str: Formatted log message
+        """
+        timestamp = datetime.now().strftime(self._timestamp_format)
+        level_name = self.LEVEL_NAMES.get(level, "UNKNOWN")
+        
+        # Calculate padding needed after the bracket (CRITICAL is 8 chars)
+        padding = " " * (8 - len(level_name))
+        
+        return f"[{timestamp}] [{level_name}]{padding} {message}"
+    
     def _rotate_if_needed(self) -> None:
         """Rotate the log file if it exceeds max_size"""
         if not self.max_size or not self._file:
@@ -329,12 +348,15 @@ class ConsoleLogger(Logger):
         timestamp = datetime.now().strftime(self._timestamp_format)
         level_name = self.LEVEL_NAMES.get(level, "UNKNOWN")
         
+        # Calculate padding needed after the bracket (CRITICAL is 8 chars)
+        padding = " " * (8 - len(level_name))
+        
         if self.use_colors and level in self.colors:
             color = self.colors[level]
             reset = Style.RESET_ALL
-            return f"{color}[{timestamp}] [{level_name}] {message}{reset}"
+            return f"[{timestamp}] [{color}{level_name}{reset}]{padding} {message}"
         else:
-            return f"[{timestamp}] [{level_name}] {message}"
+            return f"[{timestamp}] [{level_name}]{padding} {message}"
     
     def _write(self, message: str) -> None:
         """
