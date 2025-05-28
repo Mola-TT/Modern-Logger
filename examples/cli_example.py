@@ -102,7 +102,8 @@ def main():
     try:
         # Parse command-line arguments
         parser = argparse.ArgumentParser(description="Modern Logger CLI Example")
-        parser.add_argument("--log-file", default="logs/cli_example.log", help="Log file path")
+        parser.add_argument("--log-file", default="cli_example.log", help="Log file name (default: cli_example.log)")
+        parser.add_argument("--log-dir", default="logs", help="Log file directory (default: logs)")
         parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], 
                             help="Minimum log level")
         parser.add_argument("--messages", type=int, default=20, help="Number of messages to generate")
@@ -113,11 +114,13 @@ def main():
         
         args = parser.parse_args()
         
+        # Construct full log file path
+        log_file_path = os.path.join(args.log_dir, args.log_file)
+        
         # Create log directory if it doesn't exist
-        log_dir = os.path.dirname(args.log_file)
-        if log_dir and not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-            print(f"Created log directory: {log_dir}")
+        if args.log_dir and not os.path.exists(args.log_dir):
+            os.makedirs(args.log_dir)
+            print(f"Created log directory: {args.log_dir}")
         
         # Convert log level string to constant
         log_level = getattr(Logger, args.log_level)
@@ -125,13 +128,13 @@ def main():
         # Create logger with console output and optional file output
         logger = ModernLogger(
             console=True,  # Enable console output
-            file=args.log_file if args.log_file else False  # Enable file output if path provided
+            file=log_file_path  # Enable file output with constructed path
         )
         
         # Print startup message
         print(f"Modern Logger CLI Example")
         print(f"Log Level: {args.log_level}")
-        print(f"Log File: {os.path.abspath(args.log_file)}")
+        print(f"Log File: {os.path.abspath(log_file_path)}")
         print(f"Generating {args.messages} messages with {args.delay}s delay...")
         print()
         
@@ -145,7 +148,7 @@ def main():
             logger.close()
             
         print()
-        print(f"Log file created at: {os.path.abspath(args.log_file)}")
+        print(f"Log file created at: {os.path.abspath(log_file_path)}")
         
     except Exception as e:
         print(f"Error in CLI example: {e}")

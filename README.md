@@ -9,18 +9,19 @@ A flexible logging system with file, console, and GUI output options.
 - **Console Logging**: Colorful console output with customizable colors
 - **GUI Logging**: Modern Qt-based GUI with progress indicators and scroll-to-bottom button
 - **Multi-Logger**: Send logs to multiple destinations simultaneously
+- **Lazy Loading**: PySide6 is only imported when GUI functionality is explicitly requested
+- **Optional Dependencies**: CLI functionality works without installing PySide6
 
 ## Project Structure
 
 ```
 Modern-Logger/
 ├── modern_logger/
-│   ├── __init__.py          # Package initialization
+│   ├── __init__.py          # Package initialization with lazy loading
 │   ├── gui_logger.py        # GUI logger components
 │   ├── logger.py            # Base logger components
 │   └── gui_adapter.py       # Adapter to connect GUI logger with base logger
 ├── examples/
-│   ├── basic_usage.py       # Example of basic logger usage
 │   ├── cli_example.py       # Example of command-line application
 │   └── gui_example.py       # Example of GUI logger usage
 ├── install.py               # Installation helper script
@@ -53,13 +54,19 @@ python install.py --no-test
 You can also install the package manually:
 
 ```bash
-# Install from PyPI
+# Install CLI-only version (no GUI dependencies)
 pip install modern-logger
 
-# Or install from source
+# Install with GUI support
+pip install modern-logger[gui]
+
+# Install from source (CLI-only)
 git clone https://github.com/yourusername/modern-logger.git
 cd modern-logger
 pip install -e .
+
+# Install from source with GUI support
+pip install -e .[gui]
 ```
 
 ### Dependencies
@@ -67,9 +74,29 @@ pip install -e .
 - **Required**: Python 3.7+, colorama
 - **Optional (for GUI)**: PySide6
 
+**Note**: PySide6 is only imported when GUI functionality is explicitly requested. This means you can use all CLI and file logging features without installing PySide6.
+
 ## Usage
 
-### Basic Usage
+### Simple ModernLogger Interface
+
+```python
+from modern_logger import ModernLogger
+
+# CLI-only logger (no PySide6 required)
+logger = ModernLogger(console=True, file="app.log", gui=False)
+logger.info("This works without PySide6!")
+
+# GUI logger (requires PySide6)
+logger = ModernLogger(console=True, file="app.log", gui=True)
+widget = logger.get_gui_widget()  # Get widget for embedding in your app
+logger.info("This requires PySide6")
+
+# Close when done
+logger.close()
+```
+
+### Advanced Usage with Individual Components
 
 ```python
 from modern_logger import Logger, FileLogger, ConsoleLogger, MultiLogger
@@ -98,7 +125,25 @@ except Exception:
 logger.close()
 ```
 
-### GUI Logger
+### GUI Components (Lazy Loading)
+
+```python
+# GUI components are only imported when needed
+from modern_logger import get_gui_components
+
+try:
+    # This will only import PySide6 when called
+    GUIModernLogger, GUILogger = get_gui_components()
+    
+    # Use GUI components...
+    gui_widget = GUIModernLogger()
+    
+except ImportError as e:
+    print("PySide6 not available:", e)
+    # Fall back to CLI-only functionality
+```
+
+### Full GUI Application Example
 
 ```python
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
@@ -135,6 +180,31 @@ for i in range(10):
 logger.end_progress("Operation completed successfully")
 
 app.exec()
+```
+
+## Dependency Management
+
+Modern Logger uses lazy loading to minimize dependencies:
+
+- **CLI functionality**: Only requires `colorama` (automatically installed)
+- **GUI functionality**: Requires `PySide6` (only imported when GUI features are used)
+
+This means you can:
+1. Use the library in CLI applications without installing PySide6
+2. Add GUI functionality later by installing PySide6
+3. Deploy lightweight CLI applications without GUI dependencies
+
+```python
+# This works without PySide6 installed
+from modern_logger import ModernLogger
+logger = ModernLogger(console=True, file="app.log")
+logger.info("No GUI dependencies needed!")
+
+# This will show a helpful error if PySide6 is not installed
+try:
+    logger = ModernLogger(gui=True)
+except ImportError as e:
+    print(f"GUI not available: {e}")
 ```
 
 ## Customization
@@ -182,16 +252,12 @@ gui_logger.customize_scroll_button(
 
 The package includes several examples in the `examples/` directory:
 
-- `basic_usage.py`: Demonstrates basic usage of the file, console, and multi-loggers
 - `cli_example.py`: Shows how to use the loggers in a command-line application
 - `gui_example.py`: Demonstrates the GUI logger in a PySide6 application
 
 To run the examples:
 
 ```bash
-# Basic usage example
-python examples/basic_usage.py
-
 # CLI example
 python examples/cli_example.py --log-level DEBUG --messages 30
 

@@ -667,7 +667,7 @@ class MainWindow(QMainWindow):
         self._active_workers = 0
         
         # Turn off loading indicator (this will process queued messages first)
-        self.gui_widget.set_loading_off(completion_message="Concurrent Loading Test (Queued Mode) stopped by user")
+        self.gui_widget.set_loading_off(completion_message="⚠️ Concurrent Loading Test (Queued Mode) stopped by user")
         
         # Update button states
         self.start_stress_btn.setEnabled(True)
