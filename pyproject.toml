@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "modern-logger"
 version = "1.0.0"
-description = "A flexible logging system with file, console, and GUI output options"
+description = "A flexible logging system with file, console, and GUI (PySide6) output options"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Mola", email = "mola@molamola.me"}
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -40,4 +40,4 @@ Issues = "https://github.com/yourusername/modern-logger/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["modern_logger*"] 
+include = ["modern_logger*"]
