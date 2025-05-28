@@ -61,17 +61,20 @@ def install_package(dev_mode=False):
 
 def run_tests():
     """Run the example scripts to test the installation"""
-    print("\nRunning basic usage example...")
+    print("\nRunning CLI example to test installation...")
     try:
         # Create logs directory if it doesn't exist
         os.makedirs("logs", exist_ok=True)
         
-        # Run the basic usage example
-        subprocess.run([sys.executable, "examples/basic_usage.py"], check=True)
-        print("Basic usage example completed successfully")
+        # Run the CLI example with minimal output
+        result = subprocess.run([sys.executable, "examples/cli_example.py", "--messages", "3", "--delay", "0.1"], 
+                               check=True, capture_output=True, text=True)
+        print("CLI example completed successfully")
         return True
     except subprocess.CalledProcessError as e:
         print(f"Error running tests: {e}")
+        print(f"Output: {e.stdout}")
+        print(f"Error: {e.stderr}")
         return False
 
 
@@ -110,10 +113,9 @@ def main():
     print("\nInstallation completed successfully!")
     print("\nYou can now use Modern Logger in your projects:")
     print("  - Import the package: from modern_logger import Logger, FileLogger, ConsoleLogger")
-    print("  - Run the examples: python examples/basic_usage.py")
+    print("  - Run the CLI example: python examples/cli_example.py")
     if not args.no_gui:
         print("  - Run the GUI example: python examples/gui_example.py")
-    print("  - Run the CLI example: python examples/cli_example.py")
     
     return 0
 

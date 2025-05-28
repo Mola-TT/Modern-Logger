@@ -4,14 +4,19 @@ setup(
     name="modern-logger",
     version="1.0.0",
     description="A flexible logging system with file, console, and GUI output options",
+    long_description=open("README.md", "r", encoding="utf-8").read(),
+    long_description_content_type="text/markdown",
     author="Your Name",
     author_email="your.email@example.com",
     url="https://github.com/yourusername/modern-logger",
     packages=find_packages(),
     install_requires=[
         "colorama>=0.4.4",
-        "PySide6>=6.0.0",
     ],
+    extras_require={
+        "gui": ["PySide6>=6.0.0"],
+        "dev": ["PySide6>=6.0.0"],
+    },
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -22,6 +27,12 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
     python_requires=">=3.7",
+    keywords="logging, console, file, gui, qt, pyside6, modern",
+    project_urls={
+        "Bug Reports": "https://github.com/yourusername/modern-logger/issues",
+        "Source": "https://github.com/yourusername/modern-logger",
+    },
 ) 
