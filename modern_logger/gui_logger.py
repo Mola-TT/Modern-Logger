@@ -213,6 +213,8 @@ class ScrollToBottomButton(QPushButton):
                 border: none;
                 color: white;
                 font-weight: bold;
+                text-align: center;
+                qproperty-alignment: AlignCenter;
             }
             QPushButton:hover {
                 background-color: rgba(235, 100, 150, 180);
@@ -288,6 +290,8 @@ class ScrollToBottomButton(QPushButton):
                 border: none;
                 color: white;
                 font-weight: bold;
+                text-align: center;
+                qproperty-alignment: AlignCenter;
             }}
             QPushButton:hover {{
                 background-color: {h_color};
