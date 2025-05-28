@@ -26,16 +26,23 @@ Examples:
     logger.info("Logging to all outputs")
 """
 
-# Import core logger components
+# Import core logger components (always available)
 from .logger import Logger, FileLogger, ConsoleLogger, MultiLogger
 
-# Import GUI components
-from .gui_logger import ModernLogger as GUIModernLogger
-
-# Import GUI adapter
-from .gui_adapter import GUILogger
-
 __version__ = "1.0.0"
+
+# Lazy import functions for GUI components
+def _import_gui_components():
+    """Lazy import of GUI components to avoid PySide6 dependency when not needed"""
+    try:
+        from .gui_logger import ModernLogger as GUIModernLogger
+        from .gui_adapter import GUILogger
+        return GUIModernLogger, GUILogger
+    except ImportError as e:
+        raise ImportError(
+            f"GUI components require PySide6. Please install it with: pip install PySide6\n"
+            f"Original error: {e}"
+        )
 
 class ModernLogger:
     def __init__(self, console=True, file=False, gui=False):
@@ -58,6 +65,8 @@ class ModernLogger:
             self.loggers.append(FileLogger(filename=filepath))
             
         if gui:
+            # Lazy import GUI components only when needed
+            GUIModernLogger, GUILogger = _import_gui_components()
             self.gui_logger = GUIModernLogger()
             self.loggers.append(GUILogger(gui_logger=self.gui_logger))
             
@@ -90,21 +99,42 @@ class ModernLogger:
     
     def get_gui_widget(self):
         """Get the GUI widget if GUI logging is enabled"""
-        for logger in self.loggers:
-            if isinstance(logger, GUILogger):
-                return logger.gui_logger
+        # Import GUILogger class for isinstance check only when needed
+        try:
+            from .gui_adapter import GUILogger
+            for logger in self.loggers:
+                if isinstance(logger, GUILogger):
+                    return logger.gui_logger
+        except ImportError:
+            pass
         return None
+    
+    def close(self):
+        """Close all loggers and clean up resources"""
+        if hasattr(self, 'multi_logger') and self.multi_logger:
+            self.multi_logger.close()
+
+# Function to get GUI components (for advanced users who want direct access)
+def get_gui_components():
+    """
+    Get GUI components for advanced usage.
+    
+    Returns:
+        tuple: (GUIModernLogger, GUILogger) classes
+        
+    Raises:
+        ImportError: If PySide6 is not available
+    """
+    return _import_gui_components()
 
 __all__ = [
-    # Core loggers
+    # Core loggers (always available)
     'Logger',
     'FileLogger',
     'ConsoleLogger',
     'MultiLogger',
-    
-    # GUI components
     'ModernLogger',
     
-    # GUI adapter
-    'GUILogger'
+    # Utility functions
+    'get_gui_components',
 ] 
