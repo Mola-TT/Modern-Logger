@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Agent should always run Python code in a virtual environment
+- Required packages should always be installed in the virtual environment
+- Activate the virtual environment using `.\.venv\Scripts\Activate.ps1` (PowerShell) or `.\.venv\Scripts\activate` (Command Prompt)
+- Create virtual environment with `python -m venv .venv` if it doesn't exist
+- Always use `pip install` within the activated virtual environment
+- Verify virtual environment is active before running any Python commands
+- Include requirements.txt file for dependency management
+- Use specific package versions in requirements.txt when possible
+- Deactivate virtual environment with `deactivate` when done
+- Never install packages globally when working on projects

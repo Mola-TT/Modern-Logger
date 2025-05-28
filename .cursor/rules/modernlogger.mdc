@@ -1,6 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: false
----
-- Agent should always run code in a virtual env

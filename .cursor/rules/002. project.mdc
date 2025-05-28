@@ -1,0 +1,43 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## ModernLogger Project
+
+This project aims to create a Python logger library that is extremely efficient. It is capable of handling logs from multithreaded applications. It is CLI-based and is able to work with PySide6 if GUI is needed.
+
+### Key Features
+- High-performance logging with minimal overhead
+- Thread-safe multithread logging support
+- CLI-based interface for command-line applications
+- Optional PySide6 GUI integration for visual log monitoring
+- Modern Python logging architecture
+
+### Project Folder Structure
+```
+ModernLogger/
+├── .cursor/                    # Cursor IDE configuration
+│   └── rules/                  # AI instruction rules
+├── .git/                       # Git version control
+├── .venv/                      # Python virtual environment
+├── .vscode/                    # VS Code configuration
+├── __pycache__/               # Python bytecode cache
+├── modern_logger/             # Main package directory
+│   ├── __init__.py            # Package initialization and exports
+│   ├── logger.py              # Core logging functionality
+│   ├── gui_logger.py          # PySide6 GUI logger implementation
+│   ├── gui_adapter.py         # GUI adapter for logger integration
+│   └── __pycache__/           # Package bytecode cache
+├── examples/                   # Usage examples and demos
+│   ├── basic_usage.py         # Basic CLI logging examples
+│   ├── cli_example.py         # Command-line interface examples
+│   ├── gui_example.py         # PySide6 GUI logging example
+│   └── gui_example_2.py       # Additional GUI example
+├── .gitignore                 # Git ignore rules
+├── README.md                  # Project documentation
+├── setup.py                   # Package installation script
+└── install.py                 # Custom installation helper
+```
+
+
