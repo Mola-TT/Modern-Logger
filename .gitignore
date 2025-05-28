@@ -22,13 +22,51 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+pip-wheel-metadata/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
 
 # IDE specific files
 .idea/
+.vscode/
 *.swp
 *.swo
+*~
 
 # Windows specific
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.temp
+
+# Documentation builds
+docs/_build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
