@@ -470,9 +470,6 @@ class MainWindow(QMainWindow):
         # First log the start message with information icon
         self.logger.info("Starting loading test...")
         
-        # Process events to ensure the message is displayed
-        QApplication.processEvents()
-        
         # Set loading state AFTER the message is displayed
         self.gui_widget.set_loading_on(queue_messages=True)
         
@@ -569,14 +566,8 @@ class MainWindow(QMainWindow):
             # Add preparing message through the logger first
             self.logger.info("Preparing progress tracking...")
             
-            # Process events to ensure the message is displayed
-            QApplication.processEvents()
-            
             # Turn on inline progress mode AFTER the preparing message is displayed
             self.gui_widget.set_loading_on(queue_messages=False, passthrough_messages=True, inline_update=True)
-            
-            # Process events to ensure loading state is fully updated
-            QApplication.processEvents()
             
             # Create and configure inline worker - wait longer to start
             self.worker = InlineProgressWorker(steps=20)
