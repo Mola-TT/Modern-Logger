@@ -496,14 +496,38 @@ class MainWindow(QMainWindow):
             # Set flag to prevent completion message
             self._loading_stop_requested = True
             
+            # Signal worker to stop (non-blocking)
             self.loading_worker.stop()
-            self.loading_worker.wait()
-            self.logger.warning("Loading test stopped by user")
+            
+            # Use a timer to check for completion without blocking
+            self._loading_cleanup_timer = QTimer()
+            self._loading_cleanup_timer.setSingleShot(True)
+            self._loading_cleanup_timer.timeout.connect(self._cleanup_loading_worker)
+            self._loading_cleanup_timer.start(100)
+            
+            # Immediately turn off loading and update UI
             self.gui_widget.set_loading_off()
-        
-        # Update button states
-        self.start_loading_btn.setEnabled(True)
-        self.stop_loading_btn.setEnabled(False)
+            self.logger.warning("Loading test stopped by user")
+            
+            # Update button states to show stopping
+            self.start_loading_btn.setEnabled(False)
+            self.stop_loading_btn.setText("Stopping...")
+            self.stop_loading_btn.setEnabled(False)
+        else:
+            # No worker running, just reset buttons
+            self.start_loading_btn.setEnabled(True)
+            self.stop_loading_btn.setEnabled(False)
+    
+    def _cleanup_loading_worker(self):
+        """Clean up loading worker after it has stopped"""
+        if self.loading_worker and self.loading_worker.isRunning():
+            # Still running, check again
+            self._loading_cleanup_timer.start(50)
+        else:
+            # Worker has stopped, reset button states
+            self.start_loading_btn.setEnabled(True)
+            self.stop_loading_btn.setText("Stop Loading Test")
+            self.stop_loading_btn.setEnabled(False)
     
     def loading_finished(self):
         """Handle loading test completion"""
@@ -575,18 +599,37 @@ class MainWindow(QMainWindow):
             # Set the flag to indicate a manual stop was requested
             self._work_stop_requested = True
             
-            # First stop the worker thread
+            # Signal worker to stop (non-blocking)
             self.worker.stop()
             
-            # Then stop the loading indicator with a custom message
+            # Use a timer to check for completion without blocking
+            self._work_cleanup_timer = QTimer()
+            self._work_cleanup_timer.setSingleShot(True)
+            self._work_cleanup_timer.timeout.connect(self._cleanup_work_worker)
+            self._work_cleanup_timer.start(100)
+            
+            # Immediately stop the loading indicator and update UI
             self.gui_widget.set_loading_off()
             self.logger.warning("Progress test stopped by user")
             
-            # Wait for thread to finish
-            self.worker.wait()
-            
-            # Update button states
+            # Update button states to show stopping
+            self.start_progress_btn.setEnabled(False)
+            self.stop_progress_btn.setText("Stopping...")
+            self.stop_progress_btn.setEnabled(False)
+        else:
+            # No worker running, just reset buttons
             self.start_progress_btn.setEnabled(True)
+            self.stop_progress_btn.setEnabled(False)
+    
+    def _cleanup_work_worker(self):
+        """Clean up work worker after it has stopped"""
+        if self.worker and self.worker.isRunning():
+            # Still running, check again
+            self._work_cleanup_timer.start(50)
+        else:
+            # Worker has stopped, reset button states
+            self.start_progress_btn.setEnabled(True)
+            self.stop_progress_btn.setText("Stop Progress Loading Test")
             self.stop_progress_btn.setEnabled(False)
     
     def on_progress(self, message):
@@ -651,21 +694,45 @@ class MainWindow(QMainWindow):
         """Stop the stress test"""
         self._stress_stop_requested = True
         
-        # Stop all workers
+        # Signal all workers to stop (non-blocking)
         for worker in self.stress_workers:
             if worker.isRunning():
                 worker.stop()
-                worker.wait()
         
-        self.stress_workers.clear()
-        self._active_workers = 0
+        # Use a timer to check for thread completion without blocking the GUI
+        self._cleanup_timer = QTimer()
+        self._cleanup_timer.setSingleShot(True)
+        self._cleanup_timer.timeout.connect(self._cleanup_stress_workers)
+        self._cleanup_timer.start(100)  # Check after 100ms
         
-        # Turn off loading indicator (this will process queued messages first)
-        self.gui_widget.set_loading_off(completion_message="⚠️ Concurrent Loading Test (Queued Mode) stopped by user")
-        
-        # Update button states
-        self.start_stress_btn.setEnabled(True)
+        # Immediately update UI to show stopping state
+        self.start_stress_btn.setEnabled(False)  # Keep disabled until cleanup
+        self.stop_stress_btn.setText("Stopping...")
         self.stop_stress_btn.setEnabled(False)
+        
+        # Turn off loading indicator immediately (this will process queued messages first)
+        self.gui_widget.set_loading_off(completion_message="⚠️ Concurrent Loading Test (Queued Mode) stopped by user")
+    
+    def _cleanup_stress_workers(self):
+        """Clean up stress test workers after they've had time to stop"""
+        # Check if any workers are still running
+        still_running = []
+        for worker in self.stress_workers:
+            if worker.isRunning():
+                still_running.append(worker)
+        
+        if still_running:
+            # If some workers are still running, wait a bit more
+            self._cleanup_timer.start(50)  # Check again in 50ms
+        else:
+            # All workers have stopped, complete the cleanup
+            self.stress_workers.clear()
+            self._active_workers = 0
+            
+            # Reset button states
+            self.start_stress_btn.setEnabled(True)
+            self.stop_stress_btn.setText("Stop Concurrent Test")
+            self.stop_stress_btn.setEnabled(False)
     
     def on_stress_progress(self, worker_id, message):
         """Handle progress updates from stress test workers"""
@@ -714,19 +781,42 @@ class MainWindow(QMainWindow):
         """Stop all direct message worker threads"""
         self._direct_msg_stop_requested = True
         
-        # Stop all workers
+        # Signal all workers to stop (non-blocking)
         for worker in self.direct_msg_workers:
             worker.stop()
         
-        # Wait for them to finish
-        for worker in self.direct_msg_workers:
-            worker.wait(1000)  # Wait up to 1 second for each thread
+        # Use a timer to check for thread completion without blocking the GUI
+        self._direct_cleanup_timer = QTimer()
+        self._direct_cleanup_timer.setSingleShot(True)
+        self._direct_cleanup_timer.timeout.connect(self._cleanup_direct_msg_workers)
+        self._direct_cleanup_timer.start(100)  # Check after 100ms
         
-        # Update button states
-        self.start_direct_msg_btn.setEnabled(True)
+        # Immediately update UI to show stopping state
+        self.start_direct_msg_btn.setEnabled(False)  # Keep disabled until cleanup
+        self.stop_direct_msg_btn.setText("Stopping...")
         self.stop_direct_msg_btn.setEnabled(False)
         
         self.logger.info("Concurrent Message Test (No Animation) stopped by user")
+    
+    def _cleanup_direct_msg_workers(self):
+        """Clean up direct message workers after they've had time to stop"""
+        # Check if any workers are still running
+        still_running = []
+        for worker in self.direct_msg_workers:
+            if worker.isRunning():
+                still_running.append(worker)
+        
+        if still_running:
+            # If some workers are still running, wait a bit more
+            self._direct_cleanup_timer.start(50)  # Check again in 50ms
+        else:
+            # All workers have stopped, complete the cleanup
+            self.direct_msg_workers.clear()
+            
+            # Reset button states
+            self.start_direct_msg_btn.setEnabled(True)
+            self.stop_direct_msg_btn.setText("Stop Concurrent Test")
+            self.stop_direct_msg_btn.setEnabled(False)
     
     def on_direct_message(self, message):
         """Handle direct messages from worker threads"""
