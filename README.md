@@ -8,10 +8,10 @@ A high-performance, flexible logging system with file, console, and GUI output o
 - **🎯 Multiple Output Options**: Log to files, console, GUI, or any combination
 - **📁 Smart File Logging**: Automatic file creation and intelligent directory handling  
 - **🎨 Colorful Console**: Rich console output with customizable colors using colorama
-- **🖥️ Modern GUI**: Advanced Qt-based interface with progress indicators, scroll management, and real-time updates
+- **🖥️ Modern GUI (PySide6)**: Advanced Qt-based interface with progress indicators, scroll management, and real-time updates
 - **🔀 Multi-Logger**: Send logs to multiple destinations simultaneously with intelligent routing
 - **⚡ Lazy Loading**: PySide6 only imported when GUI functionality is requested
-- **📦 Optional Dependencies**: Full CLI functionality without installing GUI dependencies
+- **📦 Optional Dependencies**: Full CLI functionality without installing GUI dependencies (PySide6)
 - **📊 Advanced Export**: Export logs in multiple formats (LOG, CSV, XML, JSON) with filtering and metadata
 - **🧵 Thread-Safe**: Fully thread-safe for multithreaded applications
 - **💾 Memory Management**: Automatic memory management for long-running applications
@@ -63,31 +63,34 @@ ModernLogger/
 ### Automated Installation (Recommended)
 
 ```bash
-# Full installation with GUI support
+# Full installation with GUI support (includes PySide6)
 python install.py
 
 # Development installation (editable)
 python install.py --dev
 
-# CLI-only installation (no GUI dependencies)
+# CLI-only installation (no PySide6/GUI dependencies)
 python install.py --no-gui
 ```
 
 ### Manual Installation
 
 ```bash
-# Install from PyPI (CLI-only)
+# Install from PyPI (CLI-only, no PySide6)
 pip install modern-logger
 
-# Install with GUI support
+# Install with GUI support (includes PySide6)
 pip install modern-logger[gui]
+
+# Install PySide6 separately if needed
+pip install PySide6>=6.0.0
 
 # Install from source
 git clone https://github.com/yourusername/modern-logger.git
 cd modern-logger
-pip install -e .[gui]  # With GUI support
+pip install -e .[gui]  # With GUI support (PySide6)
 # or
-pip install -e .       # CLI-only
+pip install -e .       # CLI-only (no PySide6)
 ```
 
 ## 📖 Quick Start
@@ -114,9 +117,9 @@ logger = ModernLogger(console=True, file="logs/app.log")
 logger.info("This goes to both console and file")
 ```
 
-### GUI Logging
+### GUI Logging (Requires PySide6)
 ```python
-# Modern GUI with advanced features
+# Modern GUI with advanced features (requires PySide6)
 logger = ModernLogger(gui=True)
 widget = logger.get_gui_widget()
 
@@ -131,6 +134,8 @@ gui_widget.set_loading_on(queue_messages=True)
 logger.info("This message will be queued")
 gui_widget.set_loading_off("Operation completed!")
 ```
+
+> **Note**: GUI functionality requires PySide6. Install with `pip install modern-logger[gui]` or `pip install PySide6>=6.0.0`
 
 ## 🔧 Advanced Usage
 
