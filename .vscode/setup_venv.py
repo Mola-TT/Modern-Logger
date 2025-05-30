@@ -29,8 +29,8 @@ def setup_venv(venv_path='.venv'):
     # Create the virtual environment
     try:
         subprocess.run([sys.executable, '-m', 'venv', venv_path], check=True)
-    except subprocess.CalledProcessError:
-        print("Failed to create virtual environment. Is the venv module installed?")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to create virtual environment: {e}")
         print("Try: pip install virtualenv")
         return False
     
@@ -73,13 +73,22 @@ def setup_venv(venv_path='.venv'):
 
 def main():
     """Check for virtual environment and set up if needed"""
-    if not is_venv_setup():
-        print("Virtual environment not found or incomplete.")
-        setup_venv()
-        # Small delay to let VS Code detect the new environment
-        time.sleep(1)
-    else:
-        print("Virtual environment already set up.")
+    try:
+        if not is_venv_setup():
+            print("Virtual environment not found or incomplete.")
+            if not setup_venv():
+                print("Failed to set up virtual environment.")
+                sys.exit(1)
+            # Small delay to let VS Code detect the new environment
+            time.sleep(1)
+        else:
+            print("Virtual environment already set up.")
+        
+        print("Setup completed successfully.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

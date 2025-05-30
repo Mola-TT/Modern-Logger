@@ -4,10 +4,8 @@
         {
             "label": "ensure-venv",
             "type": "shell",
-            "command": "${command:python.interpreterPath}",
-            "args": [
-                "${workspaceFolder}/.vscode/setup_venv.py"
-            ],
+            "command": "cmd",
+            "args": ["/c", "${workspaceFolder}/.vscode/setup_venv.bat"],
             "presentation": {
                 "reveal": "silent",
                 "panel": "shared",
